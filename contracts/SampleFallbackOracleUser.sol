@@ -10,7 +10,7 @@ import "../interfaces/IBlobstreamO.sol";
     // oracle not updated in 1 hour
     // oracle frozen by guardian
 
-// for our oracle, if its not updated for 7 days, the guardian can change the oracle address
+// for our oracle, if no updates for 7 days, the guardian can change the fallback oracle address
 // the contract is consensus or fallback to a 15 minute delay with 1/3 aggregate power threshold (assume a large pair, should be smaller if less supported)
 // data must be newer than 5 minutes ago, must prove it's latest value
 
@@ -42,9 +42,18 @@ contract SampleFallbackOracleUser {
     }
 
     function pauseContract() external{
+        require(block.timestamp - pauseTimestamp > 2 days, "must be 24 hours between pauses")
         require(msg.sender == guardian, "should be guardian");
-        paused = true;
+
+        pauseTimestamp = block.timestamp;
     }
+
+    function changeFallback(address newOracle) external{
+        if((block.timestamp - priceData[priceData.length - 1]) < 7 days){
+            blobstreamO = IBlobstreamO(newOracle);
+        }
+    }
+
 
     function updateOracleData(
         OracleAttestationData calldata _attestData,
@@ -53,20 +62,19 @@ contract SampleFallbackOracleUser {
     ) external {
         require(_attestData.report.timestamp > priceData[priceData.length - 1].timestamp, "cannot go back in time");//cannot go back in time
         uint256 _price = abi.decode(_attestData.report.value, (uint256));
-        if(!paused && (block.timestamp - priceData[priceData.length - 1]) < 1 hours){
+        if((block.timestamp - pauseTimestamp) < 24 hours && (block.timestamp - priceData[priceData.length - 1]) < 1 hours){
             require(msg.sender == centralizedOracle, "must be proper signer");
-        priceData.push(PriceData(
-            _price, 
-            _attestData.report.timestamp, 
-            _attestData.report.aggregatePower, 
-            _attestData.report.previousTimestamp, 
-            _attestData.report.nextTimestamp,
-            block.timestamp
-            )
-        );
+            priceData.push(PriceData(
+                _price, 
+                _attestData.report.timestamp, 
+                _attestData.report.aggregatePower, 
+                _attestData.report.previousTimestamp, 
+                _attestData.report.nextTimestamp,
+                block.timestamp
+                )
+            );
             return;
         }
-        require(!paused, "contract paused");
         require(_attestData.queryId == queryId, "Invalid queryId");
         blobstreamO.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
         if(_attestData.report.aggregatePower < blobstreamO.powerThreshold()){//if not consensus data
