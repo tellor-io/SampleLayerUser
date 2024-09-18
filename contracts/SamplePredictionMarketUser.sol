@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.22;
+pragma solidity 0.8.24;
 
-import "../interfaces/IBlobstreamO.sol";
+import "./dependencies/IBlobstreamO.sol";
+
 
 // this contract has a pause button from a guardian (if paused, it should settle invalid or go to governance)
 // the contract consensus or fallback to a 24 hour delay with no aggregate power threshold (since you don't know what the question is)

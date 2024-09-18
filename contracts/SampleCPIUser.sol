@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.22;
+pragma solidity 0.8.24;
 
-import "../interfaces/IBlobstreamO.sol";
+import "./dependencies/IBlobstreamO.sol";
+
+
+// For this contract, you have low risk in not changing a good value, inflation rarely sky rockets, but huge risk if it is uncapped in changes
+// so you can pause it, the system limits an update to 10% change per day (in case even guardian fails)
 
 // this contract has a pause button from a guardian
-// it does not fallback to anything, but if the price is not updated for 48 hours, the guardian can change the oracle address
 // the contract consensus or fallback to a 24 hour delay with no power threshold (if not sure on support)
-//data can only go forward in time and must be within 5 minutes old, , must prove it's latest value
+// system limited to 10% , can only update price once a day (inlfation numbers don't change that much)
+//data can only go forward in time and must be within 15 minutes old, , must prove it's latest value
 
 contract SampleCPIUser {
      IBlobstreamO public blobstreamO;
@@ -43,19 +47,26 @@ contract SampleCPIUser {
         Signature[] calldata _sigs
     ) external {
         require(!paused, "contract paused");
+        require(block.timestamp - priceData[priceData.length - 1].timestamp > 1 days); //can only be updated once daily
         require(_attestData.queryId == queryId, "Invalid queryId");
         blobstreamO.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
         uint256 _price = abi.decode(_attestData.report.value, (uint256));
         if(_attestData.report.aggregatePower < blobstreamO.powerThreshold()){//if not consensus data
-            require(_attestData.attestationTimestamp - _attestData.report.timestamp >= 15 minutes);//must be at least 15 minutes old
-            require(_attestData.report.aggregatePower > blobstreamO.powerThreshold()/2);//must have >1/3 aggregate power
+            require(_attestData.attestationTimestamp - _attestData.report.timestamp >= 24 hours);//must be at least one day old
             require(_attestData.report.nextTimestamp == 0 ||
-            _attestData.attestationTimestamp - _attestData.report.nextTimestamp < 15 minutes);//cannot have newer data you can push
+            _attestData.attestationTimestamp - _attestData.report.nextTimestamp < 24 hours);//cannot have newer data you can push
         }else{
             require(_attestData.report.nextTimestamp == 0, "should be no newer timestamp"); // must push the newest data
         }
-        require(block.timestamp - _attestData.attestationTimestamp < 10 minutes);//data cannot be more than 10 minutes old (the relayed attestation)
+        require(block.timestamp - _attestData.attestationTimestamp < 15 minutes);//data cannot be more than 10 minutes old (the relayed attestation)
         require(_attestData.report.timestamp > priceData[priceData.length - 1].timestamp);//cannot go back in time
+        if(_percentChange(priceData[priceData.length - 1].price,_price) > 10){
+            if(priceData[priceData.length - 1].price > _price){
+                _price = 90 * priceData[priceData.length - 1].price / 100 ;
+            }else{
+                _price = 110 * priceData[priceData.length - 1].price / 100; 
+            }
+        }
         priceData.push(PriceData(
             _price, 
             _attestData.report.timestamp, 
@@ -67,6 +78,15 @@ contract SampleCPIUser {
         );
     }
 
+    function _percentChange(uint256 _a, uint256 _b) internal pure returns(uint256 _res){
+        if(_a > _b){
+            _res = (1000000 * _a - 1000000 * _b) / _a;
+        }
+        else{
+            _res = (1000000 * _b - 1000000 * _a) / _b;
+        }
+        _res = 100 * _res / 1000000;
+    }
     function getCurrentPriceData() external view returns (PriceData memory) {
         return priceData[priceData.length - 1];
     }

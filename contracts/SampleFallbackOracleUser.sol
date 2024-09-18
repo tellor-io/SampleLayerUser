@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.22;
+pragma solidity 0.8.24;
 
-import "../interfaces/IBlobstreamO.sol";
+import "./dependencies/IBlobstreamO.sol";
 
 
 // this contract has a pause button from a guardian.  Just pauses centralized oracle for 24 hours (then 24 hr before can pause again)
@@ -22,6 +22,7 @@ contract SampleFallbackOracleUser {
     bool public paused;
     uint256 public pauseTimestamp;
     address public guardian;
+    address public centralizedOracle;
 
     event OracleUpdated(uint256 price, uint256 timestamp, uint256 aggregatePower);
 
@@ -42,14 +43,13 @@ contract SampleFallbackOracleUser {
     }
 
     function pauseContract() external{
-        require(block.timestamp - pauseTimestamp > 2 days, "must be 24 hours between pauses")
+        require(block.timestamp - pauseTimestamp > 2 days, "must be 24 hours between pauses");
         require(msg.sender == guardian, "should be guardian");
-
         pauseTimestamp = block.timestamp;
     }
 
     function changeFallback(address newOracle) external{
-        if((block.timestamp - priceData[priceData.length - 1]) < 7 days){
+        if((block.timestamp - priceData[priceData.length - 1].timestamp) < 7 days){
             blobstreamO = IBlobstreamO(newOracle);
         }
     }
@@ -62,7 +62,7 @@ contract SampleFallbackOracleUser {
     ) external {
         require(_attestData.report.timestamp > priceData[priceData.length - 1].timestamp, "cannot go back in time");//cannot go back in time
         uint256 _price = abi.decode(_attestData.report.value, (uint256));
-        if((block.timestamp - pauseTimestamp) < 24 hours && (block.timestamp - priceData[priceData.length - 1]) < 1 hours){
+        if((block.timestamp - pauseTimestamp) < 24 hours && (block.timestamp - priceData[priceData.length - 1].timestamp) < 1 hours){
             require(msg.sender == centralizedOracle, "must be proper signer");
             priceData.push(PriceData(
                 _price, 
