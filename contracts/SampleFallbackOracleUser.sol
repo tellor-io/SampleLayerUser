@@ -3,6 +3,9 @@ pragma solidity 0.8.24;
 
 import "./dependencies/IBlobstreamO.sol";
 
+// For the ideal users of this contract, speed is ideal, but you can have a little delay if something breaks. 
+// The centralized oracle is known, so the bigger risk is liveness vs them attacking you (e.g. LINK or Coinbase)
+// so it allows you to fallback to tellor, but has a governance contract for changingthe centralized oracle or guardian
 
 // this contract has a pause button from a guardian.  Just pauses centralized oracle for 24 hours (then 24 hr before can pause again)
 // has governance contract to upgrade centralized oracle
@@ -16,18 +19,7 @@ import "./dependencies/IBlobstreamO.sol";
 
 //example user - liquity
 contract SampleFallbackOracleUser {
-    IBlobstreamO public blobstreamO;
-    Data[] public data;
-    bytes32 public queryId;
-    bool public paused;
-    uint256 public pauseTimestamp;
-    address public guardian;
-    address public centralizedOracle;
-
-    event OracleUpdated(uint256 value, uint256 timestamp, uint256 aggregatePower);
-    event ContractPaused();
-    event FallbackChanged(address newFallback);
-
+    
     struct Data {
         uint256 value;
         uint256 timestamp;
@@ -37,18 +29,35 @@ contract SampleFallbackOracleUser {
         uint256 relayTimestamp;
     }
 
-    constructor(address _blobstreamO, bytes32 _queryId, address _guardian, address _centralizedOracle) {
+    Data[] public data;
+    IBlobstreamO public blobstreamO;
+
+    address public centralizedOracle;
+    address public guardian;
+    address public governance;
+    bool public paused;
+    bytes32 public queryId;
+    uint256 public pauseTimestamp;
+
+    //for updating
+    address public proposedGuardian;
+    address public proposedOracle;
+    uint256 public updateGuardianTimestamp;
+    uint256 public updateOracleTimestamp;
+
+    event ContractPaused();
+    event FallbackChanged(address newFallback);
+    event GuardianChange(uint256 _timeWillChange, address _newGuardian);
+    event OracleChange(uint256 _timeWillChange, address _newOracle);
+    event OracleUpdated(uint256 value, uint256 timestamp, uint256 aggregatePower);
+
+
+    constructor(address _blobstreamO, bytes32 _queryId, address _guardian,address _governance, address _centralizedOracle) {
         blobstreamO = IBlobstreamO(_blobstreamO);
         queryId = _queryId;
         guardian = _guardian;
+        governance = _governance;
         centralizedOracle = _centralizedOracle;
-    }
-
-    function pauseContract() external{
-        require(block.timestamp - pauseTimestamp > 2 days, "must be 24 hours between pauses");
-        require(msg.sender == guardian, "should be guardian");
-        pauseTimestamp = block.timestamp;
-        emit ContractPaused();
     }
 
     function changeFallback(address _newOracle) external{
@@ -57,7 +66,41 @@ contract SampleFallbackOracleUser {
         }
         emit FallbackChanged(_newOracle);
     }
+    
+    function changeGuardian(address _newGuardian) external{
+        require(msg.sender == governance);
+        if(proposedGuardian == address(0)){
+            proposedGuardian = _newGuardian;
+            updateGuardianTimestamp = block.timestamp;
+            emit GuardianChange(updateGuardianTimestamp, _newGuardian);
+        }else{
+            require(block.timestamp - updateGuardianTimestamp > 7 days);
+            guardian = proposedGuardian;
+            proposedGuardian = address(0);
+            emit GuardianChange(block.timestamp, guardian);
+        }
+    }
 
+    function changeOracle(address _newOracle) external{
+        require(msg.sender == governance);
+        if(proposedOracle == address(0)){
+            proposedOracle = _newOracle;
+            updateOracleTimestamp = block.timestamp;
+            emit OracleChange(updateOracleTimestamp, _newOracle);
+        }else{
+            require(block.timestamp - updateOracleTimestamp > 7 days);
+            blobstreamO = IBlobstreamO(proposedOracle);
+            emit OracleChange(block.timestamp, proposedOracle);
+            proposedOracle = address(0);
+        }
+    }
+
+    function pauseContract() external{
+        require(block.timestamp - pauseTimestamp > 2 days, "must be 24 hours between pauses");
+        require(msg.sender == guardian, "should be guardian");
+        pauseTimestamp = block.timestamp;
+        emit ContractPaused();
+    }
 
     function updateOracleData(
         OracleAttestationData calldata _attestData,
@@ -102,12 +145,12 @@ contract SampleFallbackOracleUser {
         emit OracleUpdated(_value,_attestData.report.timestamp, _attestData.report.aggregatePower);
     }
 
-    function getCurrentData() external view returns (Data memory) {
-        return data[data.length - 1];
-    }
-
     function getAllData() external view returns(Data[] memory){
         return data;
+    }
+    
+    function getCurrentData() external view returns (Data memory) {
+        return data[data.length - 1];
     }
 
     function getValueCount() external view returns (uint256) {

@@ -3,24 +3,15 @@ pragma solidity 0.8.24;
 
 import "./dependencies/IBlobstreamO.sol";
 
-
-// For this contract, you have low risk in not changing a good value, inflation rarely sky rockets, but huge risk if it is uncapped in changes
+// For the ideal users of this contract, you have low risk in not changing a good value, inflation rarely sky rockets, but huge risk if it is uncapped in changes
 // so you can pause it, the system limits an update to 10% change per day (in case even guardian fails)
 
 // this contract has a pause button from a guardian
 // the contract consensus or fallback to a 24 hour delay with no power threshold (if not sure on support)
 // system limited to 10% , can only update value once a day (inlfation numbers don't change that much)
-//data can only go forward in time and must be within 15 minutes old, , must prove it's latest value
-
+// data can only go forward in time and must be within 15 minutes old
+//  data must prove it's latest value
 contract SampleCPIUser {
-    IBlobstreamO public blobstreamO;
-    Data[] public data;
-    bytes32 public queryId;
-    bool public paused;
-    address public guardian;
-
-    event OracleUpdated(uint256 value, uint256 timestamp, uint256 aggregatePower);
-    event ContractPaused();
 
     struct Data {
         uint256 value;
@@ -30,6 +21,16 @@ contract SampleCPIUser {
         uint256 nextTimestamp;
         uint256 relayTimestamp;
     }
+
+    Data[] public data;
+    IBlobstreamO public blobstreamO;
+    address public guardian;
+    bool public paused;
+    bytes32 public queryId;
+
+    event ContractPaused();
+    event OracleUpdated(uint256 _value, uint256 _timestamp, uint256 _aggregatePower);
+
 
     constructor(address _blobstreamO, bytes32 _queryId, address _guardian) {
         blobstreamO = IBlobstreamO(_blobstreamO);
@@ -81,6 +82,18 @@ contract SampleCPIUser {
         emit OracleUpdated(_value,_attestData.report.timestamp, _attestData.report.aggregatePower);
     }
 
+    function getAllData() external view returns(Data[] memory){
+        return data;
+    }
+    
+    function getCurrentData() external view returns (Data memory) {
+        return data[data.length - 1];
+    }
+
+    function getValueCount() external view returns (uint256) {
+        return data.length;
+    }
+
     function _percentChange(uint256 _a, uint256 _b) internal pure returns(uint256 _res){
         if(_a > _b){
             _res = (1000000 * _a - 1000000 * _b) / _a;
@@ -89,17 +102,5 @@ contract SampleCPIUser {
             _res = (1000000 * _b - 1000000 * _a) / _b;
         }
         _res = 100 * _res / 1000000;
-    }
-
-    function getCurrentData() external view returns (Data memory) {
-        return data[data.length - 1];
-    }
-
-    function getAllData() external view returns(Data[] memory){
-        return data;
-    }
-
-    function getValueCount() external view returns (uint256) {
-        return data.length;
     }
 }

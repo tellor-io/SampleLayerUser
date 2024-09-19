@@ -3,6 +3,9 @@ pragma solidity 0.8.24;
 
 import "./dependencies/IBlobstreamO.sol";
 
+// For the ideal users of this contract, you want a decentralized price feed.  Speed is nice, but you want right over fast
+// It is fast with consensus, but has a small delay for a dvm/ guardian to catch it if there are issues.  
+// Ideally the user contract pauses with the oracle, or can run fine with no update. 
 
 // this contract has a pause button from a guardian (no recovery, just pause, so user should have exit mechanism)
 // the contract consensus or fallback to a 15 minute delay with 1/3 aggregate power
@@ -10,14 +13,6 @@ import "./dependencies/IBlobstreamO.sol";
 
 //the user - needs a value feed to be right, but not in a rush.  example - ampleforth (daily vwap submitted within an hour) 
 contract SamplePriceFeedUser {
-    IBlobstreamO public blobstreamO;
-    Data[] public data;
-    bytes32 public queryId;
-    bool public paused;
-    address public guardian;
-
-    event OracleUpdated(uint256 value, uint256 timestamp, uint256 aggregatePower);
-    event ContractPaused();
 
     struct Data {
         uint256 value;
@@ -27,6 +22,17 @@ contract SamplePriceFeedUser {
         uint256 nextTimestamp;
         uint256 relayTimestamp;
     }
+
+    Data[] public data;
+    IBlobstreamO public blobstreamO;
+
+
+    address public guardian;
+    bool public paused;
+    bytes32 public queryId;
+
+    event ContractPaused();
+    event OracleUpdated(uint256 value, uint256 timestamp, uint256 aggregatePower);
 
     constructor(address _blobstreamO, bytes32 _queryId, address _guardian) {
         blobstreamO = IBlobstreamO(_blobstreamO);
@@ -71,12 +77,12 @@ contract SamplePriceFeedUser {
         emit OracleUpdated(_value,_attestData.report.timestamp, _attestData.report.aggregatePower);
     }
 
-    function getCurrentData() external view returns (Data memory) {
-        return data[data.length - 1];
-    }
-
     function getAllData() external view returns(Data[] memory){
         return data;
+    }
+    
+    function getCurrentData() external view returns (Data memory) {
+        return data[data.length - 1];
     }
 
     function getValueCount() external view returns (uint256) {
