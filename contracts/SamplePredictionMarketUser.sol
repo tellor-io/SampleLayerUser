@@ -9,16 +9,17 @@ import "./dependencies/IBlobstreamO.sol";
 // data age can be whenever (just one answer)
 
 contract SamplePredictionMarketUser {
-  IBlobstreamO public blobstreamO;
-    PriceData[] public priceData;
+    IBlobstreamO public blobstreamO;
+    Data[] public data;
     bytes32 public queryId;
     bool public paused;
     address public guardian;
 
-    event OracleUpdated(uint256 price, uint256 timestamp, uint256 aggregatePower);
+    event OracleUpdated(uint256 value, uint256 timestamp, uint256 aggregatePower);
+    event ContractPaused();
 
-    struct PriceData {
-        uint256 price;
+    struct Data {
+        uint256 value;
         uint256 timestamp;
         uint256 aggregatePower;
         uint256 previousTimestamp;
@@ -35,6 +36,7 @@ contract SamplePredictionMarketUser {
     function pauseContract() external{
         require(msg.sender == guardian, "should be guardian");
         paused = true;
+        emit ContractPaused();
     }
 
     function updateOracleData(
@@ -45,12 +47,12 @@ contract SamplePredictionMarketUser {
         require(!paused, "contract paused");
         require(_attestData.queryId == queryId, "Invalid queryId");
         blobstreamO.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
-        uint256 _price = abi.decode(_attestData.report.value, (uint256));
+        uint256 _value = abi.decode(_attestData.report.value, (uint256));
         if(_attestData.report.aggregatePower < blobstreamO.powerThreshold()){//if not consensus data
             require(_attestData.attestationTimestamp - _attestData.report.timestamp >= 24 hours);//must be at least 24 hours old
         }
-        priceData.push(PriceData(
-            _price, 
+        data.push(Data(
+            _value, 
             _attestData.report.timestamp, 
             _attestData.report.aggregatePower, 
             _attestData.report.previousTimestamp, 
@@ -58,17 +60,18 @@ contract SamplePredictionMarketUser {
             block.timestamp
             )
         );
+        emit OracleUpdated(_value,_attestData.report.timestamp, _attestData.report.aggregatePower);
     }
 
-    function getCurrentPriceData() external view returns (PriceData memory) {
-        return priceData[priceData.length - 1];
+    function getCurrentData() external view returns (Data memory) {
+        return data[data.length - 1];
     }
 
-    function getAllPriceData() external view returns(PriceData[] memory){
-        return priceData;
+    function getAllData() external view returns(Data[] memory){
+        return data;
     }
 
     function getValueCount() external view returns (uint256) {
-        return priceData.length;
+        return data.length;
     }
 }

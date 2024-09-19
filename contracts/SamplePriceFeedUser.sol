@@ -8,18 +8,19 @@ import "./dependencies/IBlobstreamO.sol";
 // the contract consensus or fallback to a 15 minute delay with 1/3 aggregate power
 // data can only go forward in time and must be within 10 minutes old, must also prove it's latest value
 
-//the user - needs a price feed to be right, but not in a rush.  example - ampleforth (daily vwap submitted within an hour) 
+//the user - needs a value feed to be right, but not in a rush.  example - ampleforth (daily vwap submitted within an hour) 
 contract SamplePriceFeedUser {
     IBlobstreamO public blobstreamO;
-    PriceData[] public priceData;
+    Data[] public data;
     bytes32 public queryId;
     bool public paused;
     address public guardian;
 
-    event OracleUpdated(uint256 price, uint256 timestamp, uint256 aggregatePower);
+    event OracleUpdated(uint256 value, uint256 timestamp, uint256 aggregatePower);
+    event ContractPaused();
 
-    struct PriceData {
-        uint256 price;
+    struct Data {
+        uint256 value;
         uint256 timestamp;
         uint256 aggregatePower;
         uint256 previousTimestamp;
@@ -36,6 +37,7 @@ contract SamplePriceFeedUser {
     function pauseContract() external{
         require(msg.sender == guardian, "should be guardian");
         paused = true;
+        emit ContractPaused();
     }
 
     function updateOracleData(
@@ -46,7 +48,7 @@ contract SamplePriceFeedUser {
         require(!paused, "contract paused");
         require(_attestData.queryId == queryId, "Invalid queryId");
         blobstreamO.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
-        uint256 _price = abi.decode(_attestData.report.value, (uint256));
+        uint256 _value = abi.decode(_attestData.report.value, (uint256));
         if(_attestData.report.aggregatePower < blobstreamO.powerThreshold()){//if not consensus data
             require(_attestData.attestationTimestamp - _attestData.report.timestamp >= 15 minutes);//must be at least 15 minutes old
             require(_attestData.report.aggregatePower > blobstreamO.powerThreshold()/2);//must have >1/3 aggregate power
@@ -56,9 +58,9 @@ contract SamplePriceFeedUser {
             require(_attestData.report.nextTimestamp == 0, "should be no newer timestamp"); // must push the newest data
         }
         require(block.timestamp - _attestData.attestationTimestamp < 10 minutes);//data cannot be more than 10 minutes old (the relayed attestation)
-        require(_attestData.report.timestamp > priceData[priceData.length - 1].timestamp);//cannot go back in time
-        priceData.push(PriceData(
-            _price, 
+        require(_attestData.report.timestamp > data[data.length - 1].timestamp);//cannot go back in time
+        data.push(Data(
+            _value, 
             _attestData.report.timestamp, 
             _attestData.report.aggregatePower, 
             _attestData.report.previousTimestamp, 
@@ -66,17 +68,18 @@ contract SamplePriceFeedUser {
             block.timestamp
             )
         );
+        emit OracleUpdated(_value,_attestData.report.timestamp, _attestData.report.aggregatePower);
     }
 
-    function getCurrentPriceData() external view returns (PriceData memory) {
-        return priceData[priceData.length - 1];
+    function getCurrentData() external view returns (Data memory) {
+        return data[data.length - 1];
     }
 
-    function getAllPriceData() external view returns(PriceData[] memory){
-        return priceData;
+    function getAllData() external view returns(Data[] memory){
+        return data;
     }
 
     function getValueCount() external view returns (uint256) {
-        return priceData.length;
+        return data.length;
     }
 }

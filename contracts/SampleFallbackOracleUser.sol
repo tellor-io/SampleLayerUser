@@ -16,18 +16,20 @@ import "./dependencies/IBlobstreamO.sol";
 
 //example user - liquity
 contract SampleFallbackOracleUser {
-  IBlobstreamO public blobstreamO;
-    PriceData[] public priceData;
+    IBlobstreamO public blobstreamO;
+    Data[] public data;
     bytes32 public queryId;
     bool public paused;
     uint256 public pauseTimestamp;
     address public guardian;
     address public centralizedOracle;
 
-    event OracleUpdated(uint256 price, uint256 timestamp, uint256 aggregatePower);
+    event OracleUpdated(uint256 value, uint256 timestamp, uint256 aggregatePower);
+    event ContractPaused();
+    event FallbackChanged(address newFallback);
 
-    struct PriceData {
-        uint256 price;
+    struct Data {
+        uint256 value;
         uint256 timestamp;
         uint256 aggregatePower;
         uint256 previousTimestamp;
@@ -46,12 +48,14 @@ contract SampleFallbackOracleUser {
         require(block.timestamp - pauseTimestamp > 2 days, "must be 24 hours between pauses");
         require(msg.sender == guardian, "should be guardian");
         pauseTimestamp = block.timestamp;
+        emit ContractPaused();
     }
 
-    function changeFallback(address newOracle) external{
-        if((block.timestamp - priceData[priceData.length - 1].timestamp) < 7 days){
-            blobstreamO = IBlobstreamO(newOracle);
+    function changeFallback(address _newOracle) external{
+        if((block.timestamp - data[data.length - 1].timestamp) < 7 days){
+            blobstreamO = IBlobstreamO(_newOracle);
         }
+        emit FallbackChanged(_newOracle);
     }
 
 
@@ -60,12 +64,12 @@ contract SampleFallbackOracleUser {
         Validator[] calldata _currentValidatorSet,
         Signature[] calldata _sigs
     ) external {
-        require(_attestData.report.timestamp > priceData[priceData.length - 1].timestamp, "cannot go back in time");//cannot go back in time
-        uint256 _price = abi.decode(_attestData.report.value, (uint256));
-        if((block.timestamp - pauseTimestamp) < 24 hours && (block.timestamp - priceData[priceData.length - 1].timestamp) < 1 hours){
+        require(_attestData.report.timestamp > data[data.length - 1].timestamp, "cannot go back in time");//cannot go back in time
+        uint256 _value = abi.decode(_attestData.report.value, (uint256));
+        if((block.timestamp - pauseTimestamp) < 24 hours && (block.timestamp - data[data.length - 1].timestamp) < 1 hours){
             require(msg.sender == centralizedOracle, "must be proper signer");
-            priceData.push(PriceData(
-                _price, 
+            data.push(Data(
+                _value, 
                 _attestData.report.timestamp, 
                 _attestData.report.aggregatePower, 
                 _attestData.report.previousTimestamp, 
@@ -86,8 +90,8 @@ contract SampleFallbackOracleUser {
             require(_attestData.report.nextTimestamp == 0, "should be no newer timestamp"); // must push the newest data
         }
         require(block.timestamp - _attestData.attestationTimestamp < 5 minutes);//data cannot be more than 5 minutes old (the relayed attestation)
-        priceData.push(PriceData(
-            _price, 
+        data.push(Data(
+            _value, 
             _attestData.report.timestamp, 
             _attestData.report.aggregatePower, 
             _attestData.report.previousTimestamp, 
@@ -95,17 +99,18 @@ contract SampleFallbackOracleUser {
             block.timestamp
             )
         );
+        emit OracleUpdated(_value,_attestData.report.timestamp, _attestData.report.aggregatePower);
     }
 
-    function getCurrentPriceData() external view returns (PriceData memory) {
-        return priceData[priceData.length - 1];
+    function getCurrentData() external view returns (Data memory) {
+        return data[data.length - 1];
     }
 
-    function getAllPriceData() external view returns(PriceData[] memory){
-        return priceData;
+    function getAllData() external view returns(Data[] memory){
+        return data;
     }
 
     function getValueCount() external view returns (uint256) {
-        return priceData.length;
+        return data.length;
     }
 }
