@@ -3,7 +3,7 @@ pragma solidity 0.8.22;
 
 import "./ECDSA.sol";
 import "./Constants.sol";
-
+import "hardhat/console.sol";
 struct OracleAttestationData {
     bytes32 queryId;
     ReportData report;
@@ -218,7 +218,22 @@ contract BlobstreamO is ECDSA {
             powerThreshold
         );
     }
-
+function dataDigest(OracleAttestationData calldata _attestData) external view returns(bytes32){
+            bytes32 _dataDigest = keccak256(
+                abi.encode(
+                    NEW_REPORT_ATTESTATION_DOMAIN_SEPARATOR,
+                    _attestData.queryId,
+                    _attestData.report.value,
+                    _attestData.report.timestamp,
+                    _attestData.report.aggregatePower,
+                    _attestData.report.previousTimestamp,
+                    _attestData.report.nextTimestamp,
+                    lastValidatorSetCheckpoint,
+                    _attestData.attestationTimestamp
+                )
+            );
+            return(_dataDigest);
+}
     /*Internal functions*/
     /// @dev Checks that enough voting power signed over a digest.
     /// It expects the signatures to be in the same order as the _currentValidators.

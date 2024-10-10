@@ -2,6 +2,7 @@
 pragma solidity 0.8.22;
 
 import "./dependencies/IBlobstreamO.sol";
+import "hardhat/console.sol";
 
 // For the ideal users of this contract, you have low risk in not changing a good value, inflation rarely sky rockets, but huge risk if it is uncapped in changes
 // so you can pause it, the system limits an update to 10% change per day (in case even guardian fails)
@@ -50,7 +51,6 @@ contract SampleCPIUser {
         Signature[] calldata _sigs
     ) external {
         require(!paused, "contract paused");
-        require(block.timestamp - data[data.length - 1].timestamp > 1 days); //can only be updated once daily
         require(_attestData.queryId == queryId, "Invalid queryId");
         blobstreamO.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
         uint256 _value = abi.decode(_attestData.report.value, (uint256));
@@ -62,12 +62,15 @@ contract SampleCPIUser {
             require(_attestData.report.nextTimestamp == 0, "should be no newer timestamp"); // must push the newest data
         }
         require(block.timestamp - _attestData.attestationTimestamp < 15 minutes);//data cannot be more than 10 minutes old (the relayed attestation)
-        require(_attestData.report.timestamp > data[data.length - 1].timestamp);//cannot go back in time
-        if(_percentChange(data[data.length - 1].value,_value) > 10){
-            if(data[data.length - 1].value > _value){
-                _value = 90 * data[data.length - 1].value / 100 ;
-            }else{
-                _value = 110 * data[data.length - 1].value / 100; 
+        if(data.length > 0 ){
+            require(data.length == 0 || block.timestamp - data[data.length - 1].timestamp > 1 days); //can only be updated once daily
+            require(_attestData.report.timestamp > data[data.length - 1].timestamp);//cannot go back in time
+            if(_percentChange(data[data.length - 1].value,_value) > 10){
+                if(data[data.length - 1].value > _value){
+                    _value = 90 * data[data.length - 1].value / 100 ;
+                }else{
+                    _value = 110 * data[data.length - 1].value / 100; 
+                }
             }
         }
         data.push(Data(

@@ -64,7 +64,7 @@ function to18(n) {
 }
 
 function tob32(n) {
-  return ethers.utils.formatBytes32String(n)
+  return ethers.formatBytes32String(n)
 }
 
 function uintTob32(n) {
@@ -126,8 +126,8 @@ getEthSignedMessageHash = (messageHash) => {
   const prefix = "\x19Ethereum Signed Message:\n32";
   const messageHashBytes = ethers.getBytes(messageHash);
   const prefixBytes = ethers.getBytes(prefix);
-  const combined = ethers.utils.concat([prefixBytes, messageHashBytes]);
-  const digest = ethers.utils.keccak256(combined);
+  const combined = ethers.concat([prefixBytes, messageHashBytes]);
+  const digest = ethers.keccak256(combined);
   return digest;
 }
 
@@ -137,7 +137,6 @@ getDataDigest = (queryId, value, timestamp, aggregatePower, previousTimestamp, n
     [DOMAIN_SEPARATOR, queryId, value, timestamp, aggregatePower, previousTimestamp, nextTimestamp, valCheckpoint, attestationTimestamp])
   return hash(enc)
 }
-
 
 getValSetStructArray = (valAddrs, powers) => {
   structArray = []
@@ -199,7 +198,7 @@ getCurrentAggregateReport = (_queryId, _value, _timestamp,_reporterPower) => {
       timestamp: _timestamp,
       aggregatePower: _reporterPower,
       previousTimestamp: 0,
-      nextTimestamp: 0
+      nextTimestamp: 0 
     }
     oracleAttestationData = {
       queryId: _queryId,
@@ -211,10 +210,11 @@ getCurrentAggregateReport = (_queryId, _value, _timestamp,_reporterPower) => {
 
 layerSign = (message, privateKey) => {
   // assumes message is bytesLike
-  messageHash = ethers.utils.sha256(message)
-  signingKey = new ethers.utils.SigningKey(privateKey)
-  signature = signingKey.signDigest(messageHash)
-  return signature
+  messageHash = ethers.sha256(message)
+  signingKey = new ethers.SigningKey(privateKey)
+  //signingKey = new ethers.Wallet(privateKey)
+  //signature = signingKey.signMessage(messageHash)
+  return signingKey.sign(messageHash)
 }
 
 module.exports = {
