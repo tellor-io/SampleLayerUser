@@ -64,7 +64,9 @@ contract SamplePriceFeedUser {
             require(_attestData.report.nextTimestamp == 0, "should be no newer timestamp"); // must push the newest data
         }
         require(block.timestamp - _attestData.attestationTimestamp < 10 minutes);//data cannot be more than 10 minutes old (the relayed attestation)
-        require(_attestData.report.timestamp > data[data.length - 1].timestamp);//cannot go back in time
+        if(data.length > 0){
+            require(_attestData.report.timestamp > data[data.length - 1].timestamp);//cannot go back in time
+        }
         data.push(Data(
             _value, 
             _attestData.report.timestamp, 

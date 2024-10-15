@@ -68,8 +68,8 @@ contract SampleFallbackOracleUser {
     }
     
     function changeGuardian(address _newGuardian) external{
-        require(msg.sender == governance);
         if(proposedGuardian == address(0)){
+            require(msg.sender == governance);
             proposedGuardian = _newGuardian;
             updateGuardianTimestamp = block.timestamp;
             emit GuardianChange(updateGuardianTimestamp, _newGuardian);
@@ -82,8 +82,8 @@ contract SampleFallbackOracleUser {
     }
 
     function changeOracle(address _newOracle) external{
-        require(msg.sender == governance);
         if(proposedOracle == address(0)){
+            require(msg.sender == governance);
             proposedOracle = _newOracle;
             updateOracleTimestamp = block.timestamp;
             emit OracleChange(updateOracleTimestamp, _newOracle);
@@ -109,7 +109,7 @@ contract SampleFallbackOracleUser {
     ) external {
         require(_attestData.report.timestamp > data[data.length - 1].timestamp, "cannot go back in time");//cannot go back in time
         uint256 _value = abi.decode(_attestData.report.value, (uint256));
-        if((block.timestamp - pauseTimestamp) < 24 hours && (block.timestamp - data[data.length - 1].timestamp) < 1 hours){
+        if((data.length == 0 || (block.timestamp - pauseTimestamp) < 24 hours && (block.timestamp - data[data.length - 1].timestamp) < 1 hours)){
             require(msg.sender == centralizedOracle, "must be proper signer");
             data.push(Data(
                 _value, 

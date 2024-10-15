@@ -135,170 +135,173 @@ describe("Sample Layer User - function tests", function () {
       await cpiUser.updateOracleData(_attestData, _currentValidatorSet, _sigs);
       let _b1= await h.getBlock()
       let vars =  await cpiUser.getCurrentData();
-      console.log(vars)
       assert(vars[0] = _value);
-      console.log(vars[1].time, _b0.timestamp)
       assert(vars[1] = _b0.timestamp, "timestamp should be correct")
       assert(vars[2] = _power)
       assert(vars[5] == _b1.timestamp)
     });
-  //   it("SampleCPIUser - getAllData", async function () {
-  //     let _b0= h.getBlock
-  //     let _power = 100;
-  //     let _value = abiCoder.encode(["uint256"], [1000])
-  //     let _attestData,_currentValidatorSet,_sigs
-  //     _attestData,_currentValidatorSet,_sigs = await submitData(CPI_QUERY_ID,_value)
-  //     await cpiUser.updateOracleData(_attestData, _currentValidatorSet, _sigs);
-  //     let _b2= h.getBlock
-  //     let _power2 = 100;
-  //     let _value2 = abiCoder.encode(["uint256"], [2000])
-  //     let _attestData2,_currentValidatorSet2,_sigs2
-  //     _attestData2,_currentValidatorSet2,_sigs2 = await submitData(CPI_QUERY_ID,_value)
-  //     await cpiUser.updateOracleData(_attestData, _currentValidatorSet, _sigs);
-  //     let vars = await cpiUser.getAllData()
-  //     assert(vars[0].value = _value);
-  //     assert(vars[0].time = _b0.timestamp)
-  //     assert(vars[0].aggregatePower = _power)
-  //     assert(vars[0].relayTimestamp == _b1.timestamp)
-  //     assert(vars[1].value = _value2);
-  //     assert(vars[1].time = _b2.timestamp)
-  //     assert(vars[1].aggregatePower = _power2)
-  //     assert(vars[1].relayTimestamp == _b2.timestamp)
-  //   });
-  //   it("SampleCPIUser - getCurrentData", async function () {
+    it("SampleCPIUser - getAllData, getValueCount", async function () {
+      let _b0= h.getBlock
+      let _power = 6;
+      let _value = abiCoder.encode(["uint256"], [1000])
+      let res = await submitData(CPI_QUERY_ID,_value, _power);
+      let _attestData = res[0]
+      let _currentValidatorSet = res[1]
+      let _sigs = res[2]
+      await cpiUser.updateOracleData(_attestData, _currentValidatorSet, _sigs);
+      let _b1= await h.getBlock()
+      assert(await cpiUser.getValueCount.call() == 1)
+      await h.advanceTime(86400)
+      let _b2= h.getBlock
+      let _power2 = 6;
+      let _value2 = abiCoder.encode(["uint256"], [2000])
+      res = await submitData(CPI_QUERY_ID,_value2, _power2);
+      let _attestData2= res[0]
+      let _currentValidatorSet2 = res[1]
+      let _sigs2 = res[2]
+      await cpiUser.updateOracleData(_attestData2, _currentValidatorSet2, _sigs2);
+      let _b3= await h.getBlock()
+      let vars = await cpiUser.getAllData()
+      console.log(vars)
+      assert(vars[0].value == _value);
+      assert(vars[0].time == _b0.timestamp)
+      assert(vars[0].aggregatePower == _power)
+      assert(vars[0].relayTimestamp == _b1.timestamp)
+      assert(vars[1].value == abiCoder.encode(["uint256"], [1100]));//capped at 10% move
+      assert(vars[1].time == _b2.timestamp)
+      assert(vars[1].aggregatePower == _power2)
+      assert(vars[1].relayTimestamp == _b3.timestamp)
+      assert(await cpiUser.getValueCount.call() == 2)
+    });
+  console.log("SampleEVMCallUser - Function Tests")
+    it("SampleEVMCallUser -Constructor", async function () {
+      assert(await evmCallUser.blobstreamO.call() == blobstream.target, "blobstream should be set right")
+      assert(await evmCallUser.queryId.call() == EVMCALL_QUERY_ID, "queryID should be set correct")
+      assert(await evmCallUser.guardian.call() == guardian.address);
+      assert(await evmCallUser.governance.call() == governance.address, "governance should set")
+    });
+    it("SampleEVMCallUser -changeGuardian", async function () {
+      await h.expectThrow(evmCallUser.changeGuardian(accounts[8].address))
+        //must be governance
+      await evmCallUser.connect(governance).changeGuardian(accounts[9].address)
+        //must wait 7 days
+      assert(await evmCallUser.guardian.call() == guardian.address);
+      assert(await evmCallUser.proposedGuardian.call() == accounts[9].address);
+      await h.expectThrow(evmCallUser.changeGuardian(accounts[8].address))
+      await h.advanceTime(86400*7)
+      await evmCallUser.changeGuardian(accounts[8].address)
+      assert(await evmCallUser.guardian.call() == accounts[9].address);
+    });
+    it("SampleEVMCallUser -changeOracle", async function () {
+      await h.expectThrow(evmCallUser.changeOracle(accounts[8].address))
+        //must be governance
+      await evmCallUser.connect(governance).changeOracle(accounts[9].address)
+        //must wait 7 days
+      assert(await evmCallUser.blobstreamO.call() == blobstream.target);
+      assert(await evmCallUser.proposedOracle.call() == accounts[9].address);
+      await h.expectThrow(evmCallUser.changeOracle(accounts[8].address))
+      await h.advanceTime(86400*7)
+      await evmCallUser.changeOracle(accounts[8].address)
+      assert(await evmCallUser.blobstreamO.call() == accounts[9].address);
+    });
+    it("SampleEVMCallUser - togglePause", async function () {
       
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  //   it("SampleCPIUser - getValueCount", async function () {
+      expect(await lock.unlockTime()).to.equal(unlockTime);
+    });
+    it("SampleEVMCallUser - updateOracleData, getCurrentData", async function () {
       
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  // console.log("SampleEVMCallUser - Function Tests")
-  //   it("SampleEVMCallUser -Constructor", async function () {
-  //     assert(await evmCallUser.blobstreamO.call() == blobstream.target, "blobstream should be set right")
-  //     assert(await evmCallUser.queryId.call() == EVMCALL_QUERY_ID, "queryID should be set correct")
-  //     assert(await evmCallUser.guardian.call() == guardian.address);
-  //     assert(await evmCallUser.governance.call() == governance.address, "governance should set")
-  //   });
-  //   it("SampleEVMCallUser -changeGuardian", async function () {
+      expect(await lock.unlockTime()).to.equal(unlockTime);
+    });
+    it("SampleEVMCallUser - getAllData, getValueCount", async function () {
       
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  //   it("SampleEVMCallUser -changeOracle", async function () {
+      expect(await lock.unlockTime()).to.equal(unlockTime);
+    });
+  console.log("SampleFallbackOracleUser")
+    it("SampleFallbackOracleUser - Constructor", async function () {
+      assert(await fallbackUser.blobstreamO.call() == blobstream.target, "blobstream should be set right")
+      assert(await fallbackUser.queryId.call() == PRICEFEEDL_QUERY_ID, "queryID should be set correct")
+      assert(await fallbackUser.guardian.call() == guardian.address);
+      assert(await fallbackUser.governance.call() == governance.address, "governance should set")
+      assert(await fallbackUser.centralizedOracle.call() == centralizedOracle.address(), "centralized oracle should be set")
+    });
+    it("SampleFallbackOracleUser - changeFallback", async function () {
       
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  //   it("SampleEVMCallUser - togglePause", async function () {
+      expect(await lock.unlockTime()).to.equal(unlockTime);
+    });
+    it("SampleFallbackOracleUser - changeGuardian", async function () {
+      await h.expectThrow(fallbacklUser.changeGuardian(accounts[8].address))
+        //must be governance
+      await fallbackUser.connect(governance).changeGuardian(accounts[9].address)
+        //must wait 7 days
+      assert(await fallbacklUser.guardian.call() == guardian.address);
+      assert(await fallbacklUser.proposedGuardian.call() == accounts[9].address);
+      await h.expectThrow(fallbackUser.changeGuardian(accounts[8].address))
+      await h.advanceTime(86400*7)
+      await fallbackUser.changeGuardian(accounts[8].address)
+      assert(await fallbackUser.guardian.call() == accounts[9].address);
+    });
+    it("SampleFallbackOracleUser - changeOracle", async function () {
+      await h.expectThrow(fallbackUser.changeOracle(accounts[8].address))
+        //must be governance
+      await fallbackUser.connect(governance).changeOracle(accounts[9].address)
+        //must wait 7 days
+      assert(await fallbackUser.blobstreamO.call() == blobstream.target);
+      assert(await fallbackUser.proposedOracle.call() == accounts[9].address);
+      await h.expectThrow(fallbackUser.changeOracle(accounts[8].address))
+      await h.advanceTime(86400*7)
+      await fallbackUser.changeOracle(accounts[8].address)
+      assert(await fallbackUser.blobstreamO.call() == accounts[9].address);
+    });
+    it("SampleFallbackOracleUser - togglePause", async function () {
       
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  //   it("SampleEVMCallUser - updateOracleData", async function () {
+      expect(await lock.unlockTime()).to.equal(unlockTime);
+    });
+    it("SampleFallbackOracleUser - updateOracleData, getCurrentData", async function () {
       
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  //   it("SampleEVMCallUser - getAllData", async function () {
+      expect(await lock.unlockTime()).to.equal(unlockTime);
+    });
+    it("SampleFallbackOracleUser - getAllData, getValueCount", async function () {
       
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  //   it("SampleEVMCallUser - getCurrentData", async function () {
+      expect(await lock.unlockTime()).to.equal(unlockTime);
+    });
+  console.log("SamplePredictionMarketUser - Function Tests")
+    it("SamplePredictionMarketUser - Constructor", async function () {
+      assert(await predictionMarketUser.blobstreamO.call() == blobstream.target, "blobstream should be set right")
+      assert(await predictionMarketUser.queryId.call() == PREDICTIONMARKET_QUERY_ID, "queryID should be set correct")
+      assert(await predictionMarketUser.guardian.call() == guardian.address);
+    });
+    it("SamplePredictionMarketUser - pauseContract", async function () {
+      await h.expectThrow(predictionMarketUser.pauseContract())
+      //only gaurdian
+      await predictionMarketUser.connect(guardian).pauseContract()
+      assert(await predictionMarketUser.paused.call(), "should be pause")
+    });
+    it("SamplePredictionMarketUser - updateOracleData, getCurrentData", async function () {
       
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  //   it("SampleEVMCallUser - getValueCount", async function () {
+      expect(await lock.unlockTime()).to.equal(unlockTime);
+    });
+    it("SamplePredictionMarketUser - getAllDatam getValueCount", async function () {
       
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  // console.log("SampleFallbackOracleUser")
-  //   it("SampleFallbackOracleUser - Constructor", async function () {
-  //     assert(await fallbackUser.blobstreamO.call() == blobstream.target, "blobstream should be set right")
-  //     assert(await fallbackUser.queryId.call() == PRICEFEEDL_QUERY_ID, "queryID should be set correct")
-  //     assert(await fallbackUser.guardian.call() == guardian.address);
-  //     assert(await fallbackUser.governance.call() == governance.address, "governance should set")
-  //     assert(await fallbackUser.centralizedOracle.call() == centralizedOracle.address(), "centralized oracle should be set")
-  //   });
-  //   it("SampleFallbackOracleUser - changeFallback", async function () {
+      expect(await lock.unlockTime()).to.equal(unlockTime);
+    });
+  console.log("SamplePriceFeedUser - Function Tests")
+    it("SamplePriceFeedUser - Constructor", async function () {
+      console.log(await priceFeedUser.blobstreamO.call() , blobstream.target)
+      assert(await priceFeedUser.blobstreamO.call() == blobstream.target, "blobstream should be set right")
+      assert(await priceFeedUser.queryId.call() == PRICEFEED_QUERY_ID, "queryID should be set correct")
+      assert(await priceFeedUser.guardian.call() == guardian.address);
+    });
+    it("SamplePriceFeedUser - pauseContract", async function () {
+      await h.expectThrow(priceFeedUser.pauseContract())
+      await priceFeedUser.connect(guardian).pauseContract()
+      assert(await priceFeedUser.paused.call(), "should be pause")
+    });
+    it("SamplePriceFeedUser - updateOracleData, getCurrentData", async function () {
       
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  //   it("SampleFallbackOracleUser - changeGuardian", async function () {
+      expect(await lock.unlockTime()).to.equal(unlockTime);
+    });
+    it("SamplePriceFeedUser - getAllData, getValueCount", async function () {
       
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  //   it("SampleFallbackOracleUser - changeOracle", async function () {
-      
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  //   it("SampleFallbackOracleUser - togglePause", async function () {
-      
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  //   it("SampleFallbackOracleUser - updateOracleData", async function () {
-      
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  //   it("SampleFallbackOracleUser - getAllData", async function () {
-      
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  //   it("SampleFallbackOracleUser - getCurrentData", async function () {
-      
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  //   it("SampleFallbackOracleUser - getValueCount", async function () {
-      
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  // console.log("SamplePredictionMarketUser - Function Tests")
-  //   it("SamplePredictionMarketUser - Constructor", async function () {
-  //     assert(await predictionMarketUser.blobstreamO.call() == blobstream.target, "blobstream should be set right")
-  //     assert(await predictionMarketUser.queryId.call() == PREDICTIONMARKET_QUERY_ID, "queryID should be set correct")
-  //     assert(await predictionMarketUser.guardian.call() == guardian.address);
-  //   });
-  //   it("SamplePredictionMarketUser - pauseContract", async function () {
-      
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  //   it("SamplePredictionMarketUser - updateOracleData", async function () {
-      
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  //   it("SamplePredictionMarketUser - getAllData", async function () {
-      
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  //   it("SamplePredictionMarketUser - getCurrentData", async function () {
-      
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  //   it("SamplePredictionMarketUser - getValueCount", async function () {
-      
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  // console.log("SamplePriceFeedUser - Function Tests")
-  //   it("SamplePriceFeedUser - Constructor", async function () {
-  //     console.log(await priceFeedUser.blobstreamO.call() , blobstream.target)
-  //     assert(await priceFeedUser.blobstreamO.call() == blobstream.target, "blobstream should be set right")
-  //     assert(await priceFeedUser.queryId.call() == PRICEFEED_QUERY_ID, "queryID should be set correct")
-  //     assert(await priceFeedUser.guardian.call() == guardian.address);
-  //   });
-  //   it("SamplePriceFeedUser - pauseContract", async function () {
-      
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  //   it("SamplePriceFeedUser - updateOracleData", async function () {
-      
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  //   it("SamplePriceFeedUser - getAllData", async function () {
-      
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  //   it("SamplePriceFeedUser - getCurrentData", async function () {
-      
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
-  //   it("SamplePriceFeedUser - getValueCount", async function () {
-      
-  //     expect(await lock.unlockTime()).to.equal(unlockTime);
-  //   });
+      expect(await lock.unlockTime()).to.equal(unlockTime);
+    });
 });

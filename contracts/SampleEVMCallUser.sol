@@ -49,8 +49,8 @@ contract SampleEVMCallUser {
     }
 
     function changeGuardian(address _newGuardian) external{
-        require(msg.sender == governance);
         if(proposedGuardian == address(0)){
+            require(msg.sender == governance);
             proposedGuardian = _newGuardian;
             updateGuardianTimestamp = block.timestamp;
             emit GuardianChange(updateGuardianTimestamp, _newGuardian);
@@ -63,8 +63,8 @@ contract SampleEVMCallUser {
     }
 
     function changeOracle(address _newOracle) external{
-        require(msg.sender == governance);
         if(proposedOracle == address(0)){
+            require(msg.sender == governance);
             proposedOracle = _newOracle;
             updateOracleTimestamp = block.timestamp;
             emit OracleChange(updateOracleTimestamp, _newOracle);
@@ -94,7 +94,9 @@ contract SampleEVMCallUser {
         require(_attestData.attestationTimestamp - _attestData.report.timestamp >= 1 hours);//must be at least an hour old for finality
         require(_attestData.report.aggregatePower > blobstreamO.powerThreshold()/2);//must have >1/3 aggregate power
         require(block.timestamp - _attestData.attestationTimestamp < 10 minutes);//data cannot be more than 10 minutes old (the relayed attestation)
-        require(_attestData.report.timestamp > data[data.length - 1].timestamp);//cannot go back in time
+        if(data.length > 0 ){
+            require(_attestData.report.timestamp > data[data.length - 1].timestamp);//cannot go back in time
+        }
         data.push(Data(
             _value, 
             _attestData.report.timestamp, 
