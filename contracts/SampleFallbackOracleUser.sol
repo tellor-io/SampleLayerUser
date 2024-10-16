@@ -61,9 +61,10 @@ contract SampleFallbackOracleUser {
     }
 
     function changeFallback(address _newOracle) external{
-        if((block.timestamp - data[data.length - 1].timestamp) < 7 days){
-            blobstreamO = IBlobstreamO(_newOracle);
-        }
+        require(data.length > 0);
+        require(msg.sender == guardian);
+        require((block.timestamp - data[data.length - 1].timestamp) > 7 days);
+        blobstreamO = IBlobstreamO(_newOracle);
         emit FallbackChanged(_newOracle);
     }
     
@@ -89,7 +90,7 @@ contract SampleFallbackOracleUser {
             emit OracleChange(updateOracleTimestamp, _newOracle);
         }else{
             require(block.timestamp - updateOracleTimestamp > 7 days);
-            blobstreamO = IBlobstreamO(proposedOracle);
+            centralizedOracle = proposedOracle;
             emit OracleChange(block.timestamp, proposedOracle);
             proposedOracle = address(0);
         }
@@ -107,10 +108,35 @@ contract SampleFallbackOracleUser {
         Validator[] calldata _currentValidatorSet,
         Signature[] calldata _sigs
     ) external {
-        require(_attestData.report.timestamp > data[data.length - 1].timestamp, "cannot go back in time");//cannot go back in time
+        require(data.length == 0 || _attestData.report.timestamp > data[data.length - 1].timestamp, "cannot go back in time");//cannot go back in time
         uint256 _value = abi.decode(_attestData.report.value, (uint256));
-        if((data.length == 0 || (block.timestamp - pauseTimestamp) < 24 hours && (block.timestamp - data[data.length - 1].timestamp) < 1 hours)){
-            require(msg.sender == centralizedOracle, "must be proper signer");
+        if(msg.sender == centralizedOracle){
+            if((data.length == 0 || (block.timestamp - pauseTimestamp) < 24 hours)){
+                data.push(Data(
+                    _value, 
+                    _attestData.report.timestamp, 
+                    _attestData.report.aggregatePower, 
+                    _attestData.report.previousTimestamp, 
+                    _attestData.report.nextTimestamp,
+                    block.timestamp
+                    )
+                );
+                emit OracleUpdated(_value,_attestData.report.timestamp, _attestData.report.aggregatePower);
+                return;
+            }
+        }
+        else if((block.timestamp - data[data.length - 1].timestamp) > 1 hours){
+            require(_attestData.queryId == queryId, "Invalid queryId");
+            blobstreamO.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
+            if(_attestData.report.aggregatePower < blobstreamO.powerThreshold()){//if not consensus data
+                require(_attestData.attestationTimestamp - _attestData.report.timestamp >= 15 minutes);//must be at least 15 minutes old
+                require(_attestData.report.aggregatePower > blobstreamO.powerThreshold()/2);//must have >1/3 aggregate power
+                require(_attestData.report.nextTimestamp == 0 ||
+                _attestData.attestationTimestamp - _attestData.report.nextTimestamp < 15 minutes);//cannot have newer data you can push
+            }else{
+                require(_attestData.report.nextTimestamp == 0, "should be no newer timestamp"); // must push the newest data
+            }
+            require(block.timestamp - _attestData.attestationTimestamp < 5 minutes);//data cannot be more than 5 minutes old (the relayed attestation)
             data.push(Data(
                 _value, 
                 _attestData.report.timestamp, 
@@ -120,29 +146,8 @@ contract SampleFallbackOracleUser {
                 block.timestamp
                 )
             );
-            return;
+            emit OracleUpdated(_value,_attestData.report.timestamp, _attestData.report.aggregatePower);
         }
-        require(_attestData.queryId == queryId, "Invalid queryId");
-        blobstreamO.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
-        if(_attestData.report.aggregatePower < blobstreamO.powerThreshold()){//if not consensus data
-            require(_attestData.attestationTimestamp - _attestData.report.timestamp >= 15 minutes);//must be at least 15 minutes old
-            require(_attestData.report.aggregatePower > blobstreamO.powerThreshold()/2);//must have >1/3 aggregate power
-            require(_attestData.report.nextTimestamp == 0 ||
-            _attestData.attestationTimestamp - _attestData.report.nextTimestamp < 15 minutes);//cannot have newer data you can push
-        }else{
-            require(_attestData.report.nextTimestamp == 0, "should be no newer timestamp"); // must push the newest data
-        }
-        require(block.timestamp - _attestData.attestationTimestamp < 5 minutes);//data cannot be more than 5 minutes old (the relayed attestation)
-        data.push(Data(
-            _value, 
-            _attestData.report.timestamp, 
-            _attestData.report.aggregatePower, 
-            _attestData.report.previousTimestamp, 
-            _attestData.report.nextTimestamp,
-            block.timestamp
-            )
-        );
-        emit OracleUpdated(_value,_attestData.report.timestamp, _attestData.report.aggregatePower);
     }
 
     function getAllData() external view returns(Data[] memory){
