@@ -13,13 +13,9 @@ This repository aims to provide an updated version of various examples of sample
 
 For more in-depth information about Tellor, check out our [documentation](https://docs.tellor.io/tellor/).
 
-Quick references are included below:
-
-# Implement Tellor into your project
-This repo already includes the [usingTellor](https://github.com/tellor-io/usingtellor) package.
 
 ## How to use
-#### 1. Clone project and install dependencies
+### 1. Clone project and install dependencies
 
 ```bash
 git clone git@github.com:tellor-io/sampleUsingTellor.git
@@ -32,7 +28,7 @@ cd hardhat
 npm i
 ```
 
-#### 2. How to Use
+#### 2. Architecture and Overview
 
 Using tellor layer is simple:
     - Have a bridge contract on the chain you want to us (blobstreamO).  This should be done for most users, but if you're working with a new chain, feel free to reach out if you want us to deploy it!
@@ -45,7 +41,7 @@ Using tellor layer is simple:
 
 
 
-#### 5. To run tests:
+#### 3. To run tests:
 
 Hardhat: 
 
@@ -53,7 +49,7 @@ Hardhat:
 npx hardhat test
 ```
 
-#### 6. Deployment:
+#### 4. Deployment:
 Hardhat: 
 
 First create a .env file corresponding to the .env.example file
@@ -69,18 +65,18 @@ npx hardhat ignition deploy ignition/modules/SampleUsingTellor.js --network <my_
 
 ```
 
-#### Maintainers <a name="maintainers"> </a>
+### Maintainers <a name="maintainers"> </a>
 [@themandalore](https://github.com/themandalore)
 <br>
 [@brendaloya](https://github.com/brendaloya)
 
 
-#### How to Contribute<a name="how2contribute"> </a>  
+### How to Contribute<a name="how2contribute"> </a>  
 
 Check out our issues log here on Github out in our [Discord](https://discord.gg/teAMSZAfJZ)
 
 
-#### Contributors<a name="contributors"> </a>
+### Contributors<a name="contributors"> </a>
 
 This repository is maintained by the Tellor team - [www.tellor.io](https://www.tellor.io)
 
