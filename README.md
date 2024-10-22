@@ -15,7 +15,7 @@ For more in-depth information about Tellor, check out our [documentation](https:
 
 
 ## How to use
-### 1. Clone project and install dependencies
+#### 1. Clone project and install dependencies
 
 ```bash
 git clone git@github.com:tellor-io/sampleUsingTellor.git
