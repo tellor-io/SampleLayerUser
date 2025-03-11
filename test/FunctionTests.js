@@ -27,7 +27,7 @@ describe("Sample Layer User - function tests", function () {
   // We define a fixture to reuse the same setup in every test.
   // We use loadFixture to run this setup once, snapshot that state,
   // and reset Hardhat Network to that snapshot in every test.
-  let accounts, cpiUser, evmCallUser, fallbackUser, predictionMarketUser, priceFeedUser, blobstream, guardian, governance, centralizedOracle
+  let accounts, cpiUser, evmCallUser, fallbackUser, predictionMarketUser, priceFeedUser, testPriceFeedUser, blobstream, guardian, governance, centralizedOracle
   let threshold, val1, val2, initialPowers, initialValAddrs;
 
   async function  submitData(queryId, value, aggregatePower, reportTimestamp){
@@ -102,6 +102,7 @@ describe("Sample Layer User - function tests", function () {
     fallbackUser = await ethers.deployContract("SampleFallbackOracleUser",[blobstream.target,PRICEFEED_QUERY_ID,guardian.address, governance.address, centralizedOracle.address]);
     predictionMarketUser = await ethers.deployContract("SamplePredictionMarketUser",[blobstream.target,PREDICTIONMARKET_QUERY_ID,guardian.address]);
     priceFeedUser = await ethers.deployContract("SamplePriceFeedUser",[blobstream.target,PRICEFEED_QUERY_ID,guardian.address]);
+    testPriceFeedUser = await ethers.deployContract("TestPriceFeedUser",[blobstream.target,PRICEFEED_QUERY_ID,guardian.address]);
   })
 
   console.log("SampleCPIUser - Function Tests")
@@ -503,5 +504,31 @@ describe("Sample Layer User - function tests", function () {
       assert(vars[1].aggregatePower == _power2)
       assert(vars[1].relayTimestamp == _b3.timestamp)
       assert(await priceFeedUser.getValueCount.call() == 2)
+    });
+  console.log("TestPriceFeedUser - Function Tests")
+    it("TestPriceFeedUser - Constructor", async function () {
+      assert(await testPriceFeedUser.blobstreamO.call() == blobstream.target, "blobstream should be set right")
+      assert(await testPriceFeedUser.queryId.call() == PRICEFEED_QUERY_ID, "queryID should be set correct")
+      assert(await testPriceFeedUser.guardian.call() == guardian.address);
+    });
+    it("TestPriceFeedUser - updateOracleData2", async function () {
+      let _b0= await h.getBlock()
+      let _power = 6;
+      let _reportTimestamp = _b0.timestamp - 60*61//at least one hour old
+      let _value = abiCoder.encode(["uint256"], [3000])
+      let res = await submitData(PRICEFEED_QUERY_ID,_value, _power, _reportTimestamp);
+      let _attestData = res[0]
+      let _currentValidatorSet = res[1]
+      let _sigs = res[2]
+      await testPriceFeedUser.updateOracleData2(_attestData, _currentValidatorSet, _sigs, _b0.timestamp);
+      let _b1= await h.getBlock()
+      let vars = await testPriceFeedUser.getAllExtendedData()
+      assert(vars[0].value == _value);
+      assert(vars[0].timestamp == _b0.timestamp - 60*61 - 2);
+      assert(vars[0].aggregatePower == _power);
+      assert(vars[0].relayTimestamp == _b1.timestamp);
+      assert(vars[0].previousTimestamp == 0);
+      assert(vars[0].nextTimestamp == 0);
+      assert(vars[0].initTimestamp == _b0.timestamp);
     });
 });

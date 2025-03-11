@@ -21,13 +21,10 @@ contract SamplePriceFeedUser {
         uint256 previousTimestamp;
         uint256 nextTimestamp;
         uint256 relayTimestamp;
-        uint256 initTimestamp;
     }
 
     Data[] public data;
     IBlobstreamO public blobstreamO;
-
-
     address public guardian;
     bool public paused;
     bytes32 public queryId;
@@ -55,6 +52,40 @@ contract SamplePriceFeedUser {
         Validator[] calldata _currentValidatorSet,
         Signature[] calldata _sigs
     ) external {
+        _verifyOracleData(
+            _attestData,
+            _currentValidatorSet,
+            _sigs
+        );
+        uint256 _price = abi.decode(_attestData.report.value, (uint256));
+        data.push(Data(
+            _price, 
+            _attestData.report.timestamp, 
+            _attestData.report.aggregatePower, 
+            _attestData.report.previousTimestamp, 
+            _attestData.report.nextTimestamp,
+            block.timestamp
+        ));
+        emit OracleUpdated(_price, _attestData.report.timestamp, _attestData.report.aggregatePower);
+    }
+
+    function getAllData() external view returns(Data[] memory){
+        return data;
+    }
+    
+    function getCurrentData() external view returns (Data memory) {
+        return data[data.length - 1];
+    }
+
+    function getValueCount() external view returns (uint256) {
+        return data.length;
+    }
+
+    function _verifyOracleData(
+        OracleAttestationData calldata _attestData,
+        Validator[] calldata _currentValidatorSet,
+        Signature[] calldata _sigs
+    ) internal view {
         require(_attestData.queryId == queryId, "Invalid queryId");
         require(block.timestamp - _attestData.report.timestamp < MAX_DATA_AGE, "data too old");
         require(block.timestamp - _attestData.attestationTimestamp < MAX_ATTESTATION_AGE, "attestation too old");
@@ -71,27 +102,5 @@ contract SamplePriceFeedUser {
             require(_attestData.report.aggregatePower > blobstreamO.powerThreshold() / 2, "insufficient optimistic report power");
         } 
         blobstreamO.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
-        uint256 _price = abi.decode(_attestData.report.value, (uint256));
-        data.push(Data(
-            _price, 
-            _attestData.report.timestamp, 
-            _attestData.report.aggregatePower, 
-            _attestData.report.previousTimestamp, 
-            _attestData.report.nextTimestamp,
-            block.timestamp,
-            _attestData.attestationTimestamp
-        ));
-    }
-
-    function getAllData() external view returns(Data[] memory){
-        return data;
-    }
-    
-    function getCurrentData() external view returns (Data memory) {
-        return data[data.length - 1];
-    }
-
-    function getValueCount() external view returns (uint256) {
-        return data.length;
     }
 }
