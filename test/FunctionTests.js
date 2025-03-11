@@ -48,7 +48,8 @@ describe("Sample Layer User - function tests", function () {
         previousTimestamp,
         nextTimestamp,
         valCheckpoint,
-        attestTimestamp
+        attestTimestamp,
+        timestamp
     )
     currentValSetArray = await h.getValSetStructArray(initialValAddrs, initialPowers)
     sig1 = await h.layerSign(dataDigest, val1.privateKey)
@@ -62,7 +63,8 @@ describe("Sample Layer User - function tests", function () {
         aggregatePower,
         previousTimestamp,
         nextTimestamp,
-        attestTimestamp
+        attestTimestamp,
+        timestamp
     )
         await blobstream.verifyOracleData(
           oracleDataStruct,

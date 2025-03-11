@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.22;
+pragma solidity 0.8.19;
 
 import "./dependencies/IBlobstreamO.sol";
 
@@ -50,6 +50,7 @@ contract SamplePredictionMarketUser {
     ) external {
         require(!paused, "contract paused");
         require(_attestData.queryId == queryId, "Invalid queryId");
+        require(block.timestamp - _attestData.attestationTimestamp < 10 minutes, "attestation too old");
         blobstreamO.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
         uint256 _value = abi.decode(_attestData.report.value, (uint256));
         if(_attestData.report.aggregatePower < blobstreamO.powerThreshold()){//if not consensus data

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.22;
+pragma solidity 0.8.19;
 
 import "./dependencies/IBlobstreamO.sol";
 import "hardhat/console.sol";
@@ -9,7 +9,7 @@ import "hardhat/console.sol";
 
 // this contract has a pause button from a guardian
 // the contract consensus or fallback to a 24 hour delay with no power threshold (if not sure on support)
-// system limited to 10% , can only update value once a day (inlfation numbers don't change that much)
+// system limited to 10% , can only update value once a day (inflation numbers don't change that much)
 // data can only go forward in time and must be within 15 minutes old
 //  data must prove it's latest value
 contract SampleCPIUser {
@@ -54,12 +54,11 @@ contract SampleCPIUser {
         require(_attestData.queryId == queryId, "Invalid queryId");
         blobstreamO.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
         uint256 _value = abi.decode(_attestData.report.value, (uint256));
+        require(_attestData.report.timestamp >= _attestData.report.lastConsensusTimestamp, "newer consensus data available");
         if(_attestData.report.aggregatePower < blobstreamO.powerThreshold()){//if not consensus data
             require(_attestData.attestationTimestamp - _attestData.report.timestamp >= 24 hours);//must be at least one day old
             require(_attestData.report.nextTimestamp == 0 ||
-            _attestData.attestationTimestamp - _attestData.report.nextTimestamp < 24 hours);//cannot have newer data you can push
-        }else{
-            require(_attestData.report.nextTimestamp == 0, "should be no newer timestamp"); // must push the newest data
+            block.timestamp - _attestData.report.nextTimestamp < 24 hours);//cannot have newer data you can push
         }
         require(block.timestamp - _attestData.attestationTimestamp < 15 minutes);//data cannot be more than 10 minutes old (the relayed attestation)
         if(data.length > 0 ){

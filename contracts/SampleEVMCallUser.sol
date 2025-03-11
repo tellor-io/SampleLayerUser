@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.22;
+pragma solidity 0.8.19;
 
 import "./dependencies/IBlobstreamO.sol";
 
@@ -92,7 +92,7 @@ contract SampleEVMCallUser {
         blobstreamO.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
         uint256 _value = abi.decode(_attestData.report.value, (uint256));
         require(_attestData.attestationTimestamp - _attestData.report.timestamp >= 1 hours);//must be at least an hour old for finality
-        require(_attestData.report.aggregatePower > blobstreamO.powerThreshold()/2);//must have >1/3 aggregate power
+        require(_attestData.report.aggregatePower > blobstreamO.powerThreshold() / 2);//must have >1/3 aggregate power
         require(block.timestamp - _attestData.attestationTimestamp < 10 minutes);//data cannot be more than 10 minutes old (the relayed attestation)
         if(data.length > 0 ){
             require(_attestData.report.timestamp > data[data.length - 1].timestamp);//cannot go back in time

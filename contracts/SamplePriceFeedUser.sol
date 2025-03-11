@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.22;
+pragma solidity 0.8.19;
 
 import "./dependencies/IBlobstreamO.sol";
 
@@ -21,6 +21,7 @@ contract SamplePriceFeedUser {
         uint256 previousTimestamp;
         uint256 nextTimestamp;
         uint256 relayTimestamp;
+        uint256 initTimestamp;
     }
 
     Data[] public data;
@@ -30,6 +31,9 @@ contract SamplePriceFeedUser {
     address public guardian;
     bool public paused;
     bytes32 public queryId;
+    uint256 public constant MAX_DATA_AGE = 4 hours;
+    uint256 public constant MAX_ATTESTATION_AGE = 10 minutes;
+    uint256 public constant OPTIMISTIC_DELAY = 15 minutes;
 
     event ContractPaused();
     event OracleUpdated(uint256 value, uint256 timestamp, uint256 aggregatePower);
@@ -51,32 +55,32 @@ contract SamplePriceFeedUser {
         Validator[] calldata _currentValidatorSet,
         Signature[] calldata _sigs
     ) external {
-        require(!paused, "contract paused");
         require(_attestData.queryId == queryId, "Invalid queryId");
+        require(block.timestamp - _attestData.report.timestamp < MAX_DATA_AGE, "data too old");
+        require(block.timestamp - _attestData.attestationTimestamp < MAX_ATTESTATION_AGE, "attestation too old");
+        if (data.length > 0) {
+            require(_attestData.report.timestamp > data[data.length - 1].timestamp, "report timestamp must increase");
+        }
+        if (_attestData.report.nextTimestamp != 0) {
+            require(block.timestamp - _attestData.report.nextTimestamp < OPTIMISTIC_DELAY, "more recent optimistic report available");
+        }
+        if (_attestData.report.timestamp != _attestData.report.lastConsensusTimestamp) {
+            // using optimistic data
+            require(_attestData.report.lastConsensusTimestamp < _attestData.report.timestamp, "newer consensus data available");
+            require(_attestData.attestationTimestamp - _attestData.report.timestamp >= OPTIMISTIC_DELAY, "dispute period not passed. request new attestations");
+            require(_attestData.report.aggregatePower > blobstreamO.powerThreshold() / 2, "insufficient optimistic report power");
+        } 
         blobstreamO.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
-        uint256 _value = abi.decode(_attestData.report.value, (uint256));
-        if(_attestData.report.aggregatePower < blobstreamO.powerThreshold()){//if not consensus data
-            require(_attestData.attestationTimestamp - _attestData.report.timestamp >= 15 minutes);//must be at least 15 minutes old
-            require(_attestData.report.aggregatePower > blobstreamO.powerThreshold()/2);//must have >1/3 aggregate power
-            require(_attestData.report.nextTimestamp == 0 ||
-            _attestData.attestationTimestamp - _attestData.report.nextTimestamp < 15 minutes);//cannot have newer data you can push
-        }else{
-            require(_attestData.report.nextTimestamp == 0, "should be no newer timestamp"); // must push the newest data
-        }
-        require(block.timestamp - _attestData.attestationTimestamp < 10 minutes);//data cannot be more than 10 minutes old (the relayed attestation)
-        if(data.length > 0){
-            require(_attestData.report.timestamp > data[data.length - 1].timestamp);//cannot go back in time
-        }
+        uint256 _price = abi.decode(_attestData.report.value, (uint256));
         data.push(Data(
-            _value, 
+            _price, 
             _attestData.report.timestamp, 
             _attestData.report.aggregatePower, 
             _attestData.report.previousTimestamp, 
             _attestData.report.nextTimestamp,
-            block.timestamp
-            )
-        );
-        emit OracleUpdated(_value,_attestData.report.timestamp, _attestData.report.aggregatePower);
+            block.timestamp,
+            _attestData.attestationTimestamp
+        ));
     }
 
     function getAllData() external view returns(Data[] memory){
