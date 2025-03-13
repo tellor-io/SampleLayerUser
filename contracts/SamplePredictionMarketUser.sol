@@ -27,6 +27,7 @@ contract SamplePredictionMarketUser {
     address public guardian;
     bool public paused;
     bytes32 public queryId;
+    uint256 public constant MS_PER_SECOND = 1000;
 
     event ContractPaused();
     event OracleUpdated(uint256 value, uint256 timestamp, uint256 aggregatePower);
@@ -50,11 +51,11 @@ contract SamplePredictionMarketUser {
     ) external {
         require(!paused, "contract paused");
         require(_attestData.queryId == queryId, "Invalid queryId");
-        require(block.timestamp - _attestData.attestationTimestamp < 10 minutes, "attestation too old");
+        require(block.timestamp - (_attestData.attestationTimestamp / MS_PER_SECOND) < 10 minutes, "attestation too old");
         blobstreamO.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
         uint256 _value = abi.decode(_attestData.report.value, (uint256));
         if(_attestData.report.aggregatePower < blobstreamO.powerThreshold()){//if not consensus data
-            require(_attestData.attestationTimestamp - _attestData.report.timestamp >= 24 hours);//must be at least 24 hours old
+            require((_attestData.attestationTimestamp - _attestData.report.timestamp) / MS_PER_SECOND >= 24 hours);//must be at least 24 hours old
         }
         data.push(Data(
             _value, 

@@ -28,7 +28,7 @@ contract SampleCPIUser {
     address public guardian;
     bool public paused;
     bytes32 public queryId;
-
+    uint256 public constant MS_PER_SECOND = 1000;
     event ContractPaused();
     event OracleUpdated(uint256 _value, uint256 _timestamp, uint256 _aggregatePower);
 
@@ -56,13 +56,13 @@ contract SampleCPIUser {
         uint256 _value = abi.decode(_attestData.report.value, (uint256));
         require(_attestData.report.timestamp >= _attestData.report.lastConsensusTimestamp, "newer consensus data available");
         if(_attestData.report.aggregatePower < blobstreamO.powerThreshold()){//if not consensus data
-            require(_attestData.attestationTimestamp - _attestData.report.timestamp >= 24 hours);//must be at least one day old
+            require((_attestData.attestationTimestamp - _attestData.report.timestamp) / MS_PER_SECOND >= 24 hours);//must be at least one day old
             require(_attestData.report.nextTimestamp == 0 ||
-            block.timestamp - _attestData.report.nextTimestamp < 24 hours);//cannot have newer data you can push
+            block.timestamp - (_attestData.report.nextTimestamp / MS_PER_SECOND) < 24 hours);//cannot have newer data you can push
         }
-        require(block.timestamp - _attestData.attestationTimestamp < 15 minutes);//data cannot be more than 10 minutes old (the relayed attestation)
+        require(block.timestamp - (_attestData.attestationTimestamp / MS_PER_SECOND) < 15 minutes);//data cannot be more than 10 minutes old (the relayed attestation)
         if(data.length > 0 ){
-            require(data.length == 0 || block.timestamp - data[data.length - 1].timestamp > 1 days); //can only be updated once daily
+            require(data.length == 0 || block.timestamp - (data[data.length - 1].timestamp / MS_PER_SECOND) > 1 days); //can only be updated once daily
             require(_attestData.report.timestamp > data[data.length - 1].timestamp);//cannot go back in time
             if(_percentChange(data[data.length - 1].value,_value) > 10){
                 if(data[data.length - 1].value > _value){

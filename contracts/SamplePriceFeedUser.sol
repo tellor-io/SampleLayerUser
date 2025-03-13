@@ -31,6 +31,7 @@ contract SamplePriceFeedUser {
     uint256 public constant MAX_DATA_AGE = 4 hours;
     uint256 public constant MAX_ATTESTATION_AGE = 10 minutes;
     uint256 public constant OPTIMISTIC_DELAY = 15 minutes;
+    uint256 public constant MS_PER_SECOND = 1000;
 
     event ContractPaused();
     event OracleUpdated(uint256 value, uint256 timestamp, uint256 aggregatePower);
@@ -87,18 +88,18 @@ contract SamplePriceFeedUser {
         Signature[] calldata _sigs
     ) internal view {
         require(_attestData.queryId == queryId, "Invalid queryId");
-        require(block.timestamp - _attestData.report.timestamp < MAX_DATA_AGE, "data too old");
-        require(block.timestamp - _attestData.attestationTimestamp < MAX_ATTESTATION_AGE, "attestation too old");
+        require(block.timestamp - (_attestData.report.timestamp / MS_PER_SECOND) < MAX_DATA_AGE, "data too old");
+        require(block.timestamp - (_attestData.attestationTimestamp / MS_PER_SECOND) < MAX_ATTESTATION_AGE, "attestation too old");
         if (data.length > 0) {
             require(_attestData.report.timestamp > data[data.length - 1].timestamp, "report timestamp must increase");
         }
         if (_attestData.report.nextTimestamp != 0) {
-            require(block.timestamp - _attestData.report.nextTimestamp < OPTIMISTIC_DELAY, "more recent optimistic report available");
+            require(block.timestamp - (_attestData.report.nextTimestamp / MS_PER_SECOND) < OPTIMISTIC_DELAY, "more recent optimistic report available");
         }
         if (_attestData.report.timestamp != _attestData.report.lastConsensusTimestamp) {
             // using optimistic data
             require(_attestData.report.lastConsensusTimestamp < _attestData.report.timestamp, "newer consensus data available");
-            require(_attestData.attestationTimestamp - _attestData.report.timestamp >= OPTIMISTIC_DELAY, "dispute period not passed. request new attestations");
+            require((_attestData.attestationTimestamp - _attestData.report.timestamp) / MS_PER_SECOND >= OPTIMISTIC_DELAY, "dispute period not passed. request new attestations");
             require(_attestData.report.aggregatePower > blobstreamO.powerThreshold() / 2, "insufficient optimistic report power");
         } 
         blobstreamO.verifyOracleData(_attestData, _currentValidatorSet, _sigs);

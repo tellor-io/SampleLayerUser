@@ -38,7 +38,7 @@ contract SampleFallbackOracleUser {
     bool public paused;
     bytes32 public queryId;
     uint256 public pauseTimestamp;
-
+    uint256 public constant MS_PER_SECOND = 1000;
     //for updating
     address public proposedGuardian;
     address public proposedOracle;
@@ -63,7 +63,7 @@ contract SampleFallbackOracleUser {
     function changeFallback(address _newOracle) external{
         require(data.length > 0);
         require(msg.sender == guardian);
-        require((block.timestamp - data[data.length - 1].timestamp) > 7 days);
+        require(block.timestamp - (data[data.length - 1].timestamp / MS_PER_SECOND) > 7 days);
         blobstreamO = IBlobstreamO(_newOracle);
         emit FallbackChanged(_newOracle);
     }
@@ -125,18 +125,18 @@ contract SampleFallbackOracleUser {
                 return;
             }
         }
-        else if((block.timestamp - data[data.length - 1].timestamp) > 1 hours){
+        else if((block.timestamp - (data[data.length - 1].timestamp / MS_PER_SECOND)) > 1 hours){
             require(_attestData.queryId == queryId, "Invalid queryId");
             blobstreamO.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
             if(_attestData.report.aggregatePower < blobstreamO.powerThreshold()){//if not consensus data
-                require(_attestData.attestationTimestamp - _attestData.report.timestamp >= 15 minutes);//must be at least 15 minutes old
+                require((_attestData.attestationTimestamp - _attestData.report.timestamp) / MS_PER_SECOND >= 15 minutes);//must be at least 15 minutes old
                 require(_attestData.report.aggregatePower > blobstreamO.powerThreshold()/2);//must have >1/3 aggregate power
                 require(_attestData.report.nextTimestamp == 0 ||
-                _attestData.attestationTimestamp - _attestData.report.nextTimestamp < 15 minutes);//cannot have newer data you can push
+                (_attestData.attestationTimestamp - _attestData.report.nextTimestamp) / MS_PER_SECOND < 15 minutes);//cannot have newer data you can push
             }else{
                 require(_attestData.report.nextTimestamp == 0, "should be no newer timestamp"); // must push the newest data
             }
-            require(block.timestamp - _attestData.attestationTimestamp < 5 minutes);//data cannot be more than 5 minutes old (the relayed attestation)
+            require(block.timestamp - (_attestData.attestationTimestamp / MS_PER_SECOND) < 5 minutes);//data cannot be more than 5 minutes old (the relayed attestation)
             data.push(Data(
                 _value, 
                 _attestData.report.timestamp, 

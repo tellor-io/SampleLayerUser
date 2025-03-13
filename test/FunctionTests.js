@@ -34,8 +34,8 @@ describe("Sample Layer User - function tests", function () {
     //e.g. value = abiCoder.encode(["uint256"], [2000])
     // e.g. queryId = h.hash("myquery")
     blocky = await h.getBlock()
-    attestTimestamp = blocky.timestamp
-    timestamp = reportTimestamp - 2
+    attestTimestamp = blocky.timestamp * 1000
+    timestamp = (reportTimestamp - 2) * 1000
     previousTimestamp = 0
     nextTimestamp = 0
     newValHash = await h.calculateValHash(initialValAddrs, initialPowers)
@@ -104,8 +104,7 @@ describe("Sample Layer User - function tests", function () {
     priceFeedUser = await ethers.deployContract("SamplePriceFeedUser",[blobstream.target,PRICEFEED_QUERY_ID,guardian.address]);
     testPriceFeedUser = await ethers.deployContract("TestPriceFeedUser",[blobstream.target,PRICEFEED_QUERY_ID,guardian.address]);
   })
-
-  console.log("SampleCPIUser - Function Tests")
+  describe("SampleCPIUser - Function Tests", function () {
     it("SampleCPIUser - Constructor", async function () {
       assert(await cpiUser.blobstreamO.call() == blobstream.target, "blobstream should be set right")
       assert(await cpiUser.queryId.call() == CPI_QUERY_ID, "queryID should be set correct")
@@ -156,16 +155,17 @@ describe("Sample Layer User - function tests", function () {
       let _b3= await h.getBlock()
       let vars = await cpiUser.getAllData()
       assert(vars[0].value == _value);
-      assert(vars[0].timestamp== _b0.timestamp - 2)
+      assert(vars[0].timestamp== (_b0.timestamp - 2) * 1000)
       assert(vars[0].aggregatePower == _power)
       assert(vars[0].relayTimestamp == _b1.timestamp)
       assert(vars[1].value == abiCoder.encode(["uint256"], [1100]));//capped at 10% move
-      assert(vars[1].timestamp == _b2.timestamp - 2)
+      assert(vars[1].timestamp == (_b2.timestamp - 2) * 1000)
       assert(vars[1].aggregatePower == _power2)
       assert(vars[1].relayTimestamp == _b3.timestamp)
       assert(await cpiUser.getValueCount.call() == 2)
     });
-  console.log("SampleEVMCallUser - Function Tests")
+  });
+  describe("SampleEVMCallUser - Function Tests", function () {
     it("SampleEVMCallUser -Constructor", async function () {
       assert(await evmCallUser.blobstreamO.call() == blobstream.target, "blobstream should be set right")
       assert(await evmCallUser.queryId.call() == EVMCALL_QUERY_ID, "queryID should be set correct")
@@ -257,16 +257,17 @@ describe("Sample Layer User - function tests", function () {
       let _b3= await h.getBlock()
       let vars = await evmCallUser.getAllData()
       assert(vars[0].value == _value);
-      assert(vars[0].timestamp== _b0.timestamp - 60*61 - 2)
+      assert(vars[0].timestamp== (_b0.timestamp - 60*61 - 2) * 1000)
       assert(vars[0].aggregatePower == _power)
       assert(vars[0].relayTimestamp == _b1.timestamp)
       assert(vars[1].value == abiCoder.encode(["uint256"], [2000]));
-      assert(vars[1].timestamp == _b2.timestamp - 60*61 - 2)
+      assert(vars[1].timestamp == (_b2.timestamp - 60*61 - 2) * 1000)
       assert(vars[1].aggregatePower == _power2)
       assert(vars[1].relayTimestamp == _b3.timestamp)
       assert(await evmCallUser.getValueCount.call() == 2)
     });
-  console.log("SampleFallbackOracleUser")
+  });
+  describe("SampleFallbackOracleUser - Function Tests", function () {
     it("SampleFallbackOracleUser - Constructor", async function () {
       assert(await fallbackUser.blobstreamO.call() == blobstream.target, "blobstream should be set right")
       assert(await fallbackUser.queryId.call() == PRICEFEED_QUERY_ID, "queryID should be set correct")
@@ -374,15 +375,16 @@ describe("Sample Layer User - function tests", function () {
         let _b3= await h.getBlock()
         vars = await fallbackUser.getAllData()
         assert(vars[0].value == _value);
-        assert(vars[0].timestamp== _b0.timestamp - 2)
+        assert(vars[0].timestamp== (_b0.timestamp - 2) * 1000)
         assert(vars[0].aggregatePower == _power)
         assert(vars[0].relayTimestamp == _b1.timestamp)
         assert(vars[1].value == abiCoder.encode(["uint256"], [9000]));
-        assert(vars[1].timestamp == _reportTimestamp2 - 2)
+        assert(vars[1].timestamp == (_reportTimestamp2 - 2) * 1000)
         assert(vars[1].aggregatePower == _power2)
         assert(vars[1].relayTimestamp == _b3.timestamp)
     });
-  console.log("SamplePredictionMarketUser - Function Tests")
+  });
+  describe("SamplePredictionMarketUser - Function Tests", function () {
     it("SamplePredictionMarketUser - Constructor", async function () {
       assert(await predictionMarketUser.blobstreamO.call() == blobstream.target, "blobstream should be set right")
       assert(await predictionMarketUser.queryId.call() == PREDICTIONMARKET_QUERY_ID, "queryID should be set correct")
@@ -435,16 +437,17 @@ describe("Sample Layer User - function tests", function () {
       let _b3= await h.getBlock()
       let vars = await predictionMarketUser.getAllData()
       assert(vars[0].value == _value);
-      assert(vars[0].timestamp== _b0.timestamp - 60*61 - 2)
+      assert(vars[0].timestamp== (_b0.timestamp - 60*61 - 2) * 1000)
       assert(vars[0].aggregatePower == _power)
       assert(vars[0].relayTimestamp == _b1.timestamp)
       assert(vars[1].value == abiCoder.encode(["uint256"], [2000]));
-      assert(vars[1].timestamp == _b2.timestamp - 60*61 - 2)
+      assert(vars[1].timestamp == (_b2.timestamp - 60*61 - 2) * 1000)
       assert(vars[1].aggregatePower == _power2)
       assert(vars[1].relayTimestamp == _b3.timestamp)
       assert(await predictionMarketUser.getValueCount.call() == 2)
     });
-  console.log("SamplePriceFeedUser - Function Tests")
+  });
+  describe("SamplePriceFeedUser - Function Tests", function () {
     it("SamplePriceFeedUser - Constructor", async function () {
       assert(await priceFeedUser.blobstreamO.call() == blobstream.target, "blobstream should be set right")
       assert(await priceFeedUser.queryId.call() == PRICEFEED_QUERY_ID, "queryID should be set correct")
@@ -496,16 +499,17 @@ describe("Sample Layer User - function tests", function () {
       let _b3= await h.getBlock()
       let vars = await priceFeedUser.getAllData()
       assert(vars[0].value == _value);
-      assert(vars[0].timestamp== _b0.timestamp - 60*61 - 2)
+      assert(vars[0].timestamp== (_b0.timestamp - 60*61 - 2) * 1000)
       assert(vars[0].aggregatePower == _power)
       assert(vars[0].relayTimestamp == _b1.timestamp)
       assert(vars[1].value == abiCoder.encode(["uint256"], [2000]));
-      assert(vars[1].timestamp == _b2.timestamp - 60*61 - 2)
+      assert(vars[1].timestamp == (_b2.timestamp - 60*61 - 2) * 1000)
       assert(vars[1].aggregatePower == _power2)
       assert(vars[1].relayTimestamp == _b3.timestamp)
       assert(await priceFeedUser.getValueCount.call() == 2)
     });
-  console.log("TestPriceFeedUser - Function Tests")
+  });
+  describe("TestPriceFeedUser - Function Tests", function () {
     it("TestPriceFeedUser - Constructor", async function () {
       assert(await testPriceFeedUser.blobstreamO.call() == blobstream.target, "blobstream should be set right")
       assert(await testPriceFeedUser.queryId.call() == PRICEFEED_QUERY_ID, "queryID should be set correct")
@@ -524,11 +528,12 @@ describe("Sample Layer User - function tests", function () {
       let _b1= await h.getBlock()
       let vars = await testPriceFeedUser.getAllExtendedData()
       assert(vars[0].value == _value);
-      assert(vars[0].timestamp == _b0.timestamp - 60*61 - 2);
+      assert(vars[0].timestamp == (_b0.timestamp - 60*61 - 2) * 1000);
       assert(vars[0].aggregatePower == _power);
       assert(vars[0].relayTimestamp == _b1.timestamp);
       assert(vars[0].previousTimestamp == 0);
       assert(vars[0].nextTimestamp == 0);
       assert(vars[0].initTimestamp == _b0.timestamp);
     });
+  });
 });
