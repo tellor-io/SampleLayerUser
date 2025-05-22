@@ -5,7 +5,7 @@ import "usingtellorlayer/contracts/interfaces/ITellorDataBridge.sol";
 
 // This contract shows the minimal version of a tellor oracle user
 
-contract TellorUser {
+contract SampleMVPUser {
     ITellorDataBridge public dataBridge;
     bytes32 public queryId;
     OracleData[] public oracleData;
