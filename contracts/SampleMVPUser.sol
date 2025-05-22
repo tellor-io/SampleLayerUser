@@ -6,11 +6,11 @@ import "usingtellorlayer/contracts/interfaces/ITellorDataBridge.sol";
 // This contract shows the minimal version of a tellor oracle user
 
 contract TellorUser {
-    Data[] public data;
     ITellorDataBridge public dataBridge;
     bytes32 public queryId;
+    OracleData[] public oracleData;
 
-    struct Data {
+    struct OracleData {
         uint256 value;
         uint256 timestamp;
     }
@@ -33,6 +33,14 @@ contract TellorUser {
 
         // decode the data and store it
         uint256 _value = abi.decode(_attestData.report.value, (uint256));
-        data.push(Data(_value, _attestData.report.timestamp));
+        oracleData.push(OracleData(_value, _attestData.report.timestamp));
+    }
+
+    function getCurrentData() external view returns (OracleData memory) {
+        return oracleData[oracleData.length - 1];
+    }
+
+    function getValueCount() external view returns (uint256) {
+        return oracleData.length;
     }
 }

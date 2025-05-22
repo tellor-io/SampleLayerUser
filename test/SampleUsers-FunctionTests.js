@@ -1,9 +1,7 @@
 var assert = require('assert');
-const abiCoder = new ethers.AbiCoder();
-const { expect } = require("chai");
 const h = require("usingtellorlayer/src/helpers/evmHelpers.js")
-// const h = require("./helpers/evmHelpers.js");
 const TellorDataBridgeArtifact = require("usingtellorlayer/artifacts/contracts/testing/bridge/TellorDataBridge.sol/TellorDataBridge.json");
+const abiCoder = new ethers.AbiCoder();
 
 const PRICEFEED_DATA_ARGS = abiCoder.encode(["string","string"], ["trb","usd"])
 const PRICEFEED_QUERY_DATA = abiCoder.encode(["string", "bytes"], ["SpotPrice", PRICEFEED_DATA_ARGS])
