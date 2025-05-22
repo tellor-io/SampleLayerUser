@@ -524,7 +524,7 @@ describe("Sample Layer User - function tests", function () {
       let _attestData = res[0]
       let _currentValidatorSet = res[1]
       let _sigs = res[2]
-      await testPriceFeedUser.updateOracleData2(_attestData, _currentValidatorSet, _sigs, _b0.timestamp);
+      await testPriceFeedUser.updateOracleData2(_attestData, _currentValidatorSet, _sigs, _b0.timestamp, _b0.timestamp+1);
       let _b1= await h.getBlock()
       let vars = await testPriceFeedUser.getAllExtendedData()
       assert(vars[0].value == _value);

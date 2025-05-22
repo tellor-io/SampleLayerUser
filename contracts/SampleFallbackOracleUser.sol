@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import "./dependencies/IBlobstreamO.sol";
+import "usingtellorlayer/contracts/interfaces/IBlobstreamO.sol";
 
 // For the ideal users of this contract, speed is ideal, but you can have a little delay if something breaks. 
 // The centralized oracle is known, so the bigger risk is liveness vs them attacking you (e.g. LINK or Coinbase)

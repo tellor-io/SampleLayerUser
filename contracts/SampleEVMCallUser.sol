@@ -30,6 +30,10 @@ contract SampleEVMCallUser {
     bool public paused;
     bytes32 public queryId;
     uint256 public constant MS_PER_SECOND = 1000;
+    uint256 public constant MAX_DATA_AGE = 4 hours;
+    uint256 public constant MAX_ATTESTATION_AGE = 10 minutes;
+    uint256 public constant OPTIMISTIC_DELAY = 1 hours;
+
     //for updating
     address public proposedGuardian;
     address public proposedOracle;
@@ -89,11 +93,12 @@ contract SampleEVMCallUser {
     ) external {
         require(!paused, "contract paused");
         require(_attestData.queryId == queryId, "Invalid queryId");
+        require(block.timestamp - (_attestData.attestationTimestamp / MS_PER_SECOND) < MAX_ATTESTATION_AGE, "attestation too old");
+        require(block.timestamp - (_attestData.report.timestamp / MS_PER_SECOND) < MAX_DATA_AGE, "data too old");
         blobstreamO.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
         uint256 _value = abi.decode(_attestData.report.value, (uint256));
-        require((_attestData.attestationTimestamp - _attestData.report.timestamp) / MS_PER_SECOND >= 1 hours);//must be at least an hour old for finality
+        require((_attestData.attestationTimestamp - _attestData.report.timestamp) / MS_PER_SECOND >= OPTIMISTIC_DELAY);//must be at least an hour old for finality
         require(_attestData.report.aggregatePower > blobstreamO.powerThreshold() / 2);//must have >1/3 aggregate power
-        require(block.timestamp - (_attestData.attestationTimestamp / MS_PER_SECOND) < 10 minutes);//data cannot be more than 10 minutes old (the relayed attestation)
         if(data.length > 0 ){
             require(_attestData.report.timestamp > data[data.length - 1].timestamp);//cannot go back in time
         }
