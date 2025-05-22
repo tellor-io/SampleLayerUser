@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import "../SamplePriceFeedUser.sol";
 
 contract TestPriceFeedUser is SamplePriceFeedUser {
-    constructor(address _blobstreamO, bytes32 _queryId, address _guardian) SamplePriceFeedUser(_blobstreamO, _queryId, _guardian) {}
+    constructor(address _dataBridge, bytes32 _queryId, address _guardian) SamplePriceFeedUser(_dataBridge, _queryId, _guardian) {}
 
     struct ExtendedData {
         uint256 value;

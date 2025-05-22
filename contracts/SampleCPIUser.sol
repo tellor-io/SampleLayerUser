@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import "./dependencies/IBlobstreamO.sol";
-import "hardhat/console.sol";
+import "usingtellorlayer/contracts/interfaces/ITellorDataBridge.sol";
 
 // For the ideal users of this contract, you have low risk in not changing a good value, inflation rarely sky rockets, but huge risk if it is uncapped in changes
 // so you can pause it, the system limits an update to 10% change per day (in case even guardian fails)
@@ -24,7 +23,7 @@ contract SampleCPIUser {
     }
 
     Data[] public data;
-    IBlobstreamO public blobstreamO;
+    ITellorDataBridge public dataBridge;
     address public guardian;
     bool public paused;
     bytes32 public queryId;
@@ -36,8 +35,8 @@ contract SampleCPIUser {
     event OracleUpdated(uint256 _value, uint256 _timestamp, uint256 _aggregatePower);
 
 
-    constructor(address _blobstreamO, bytes32 _queryId, address _guardian) {
-        blobstreamO = IBlobstreamO(_blobstreamO);
+    constructor(address _dataBridge, bytes32 _queryId, address _guardian) {
+        dataBridge = ITellorDataBridge(_dataBridge);
         queryId = _queryId;
         guardian = _guardian;
     }
@@ -57,9 +56,9 @@ contract SampleCPIUser {
         require(_attestData.queryId == queryId, "Invalid queryId");
         require(block.timestamp - (_attestData.attestationTimestamp / MS_PER_SECOND) < MAX_ATTESTATION_AGE, "attestation too old");
         require(block.timestamp - (_attestData.report.timestamp / MS_PER_SECOND) < MAX_DATA_AGE, "data too old");
-        blobstreamO.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
+        dataBridge.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
         require(_attestData.report.timestamp >= _attestData.report.lastConsensusTimestamp, "newer consensus data available");
-        if (_attestData.report.aggregatePower < blobstreamO.powerThreshold()){//if not consensus data
+        if (_attestData.report.aggregatePower < dataBridge.powerThreshold()){//if not consensus data
             require((_attestData.attestationTimestamp - _attestData.report.timestamp) / MS_PER_SECOND >= OPTIMISTIC_DELAY);//must be at least one day old
             require(_attestData.report.nextTimestamp == 0 ||
             block.timestamp - (_attestData.report.nextTimestamp / MS_PER_SECOND) < OPTIMISTIC_DELAY);//cannot have newer data you can push

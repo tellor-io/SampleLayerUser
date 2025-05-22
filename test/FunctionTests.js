@@ -1,8 +1,9 @@
 var assert = require('assert');
 const abiCoder = new ethers.AbiCoder();
 const { expect } = require("chai");
-const h = require("./helpers/evmHelpers.js");
-const { report } = require('process');
+const h = require("usingtellorlayer/src/helpers/evmHelpers.js")
+// const h = require("./helpers/evmHelpers.js");
+const TellorDataBridgeArtifact = require("usingtellorlayer/artifacts/contracts/testing/bridge/TellorDataBridge.sol/TellorDataBridge.json");
 
 const PRICEFEED_DATA_ARGS = abiCoder.encode(["string","string"], ["trb","usd"])
 const PRICEFEED_QUERY_DATA = abiCoder.encode(["string", "bytes"], ["SpotPrice", PRICEFEED_DATA_ARGS])
@@ -27,7 +28,7 @@ describe("Sample Layer User - function tests", function () {
   // We define a fixture to reuse the same setup in every test.
   // We use loadFixture to run this setup once, snapshot that state,
   // and reset Hardhat Network to that snapshot in every test.
-  let accounts, cpiUser, evmCallUser, fallbackUser, predictionMarketUser, priceFeedUser, testPriceFeedUser, blobstream, guardian, governance, centralizedOracle
+  let accounts, cpiUser, evmCallUser, fallbackUser, predictionMarketUser, priceFeedUser, testPriceFeedUser, dataBridge, guardian, governance, centralizedOracle
   let threshold, val1, val2, initialPowers, initialValAddrs;
 
   async function  submitData(queryId, value, aggregatePower, reportTimestamp){
@@ -66,7 +67,7 @@ describe("Sample Layer User - function tests", function () {
         attestTimestamp,
         timestamp
     )
-        await blobstream.verifyOracleData(
+        await dataBridge.verifyOracleData(
           oracleDataStruct,
           currentValSetArray,
           sigStructArray
@@ -93,20 +94,21 @@ describe("Sample Layer User - function tests", function () {
     valTimestamp = (blocky.timestamp - 2) * 1000
     newValHash = await h.calculateValHash(initialValAddrs, initialPowers)
     valCheckpoint = h.calculateValCheckpoint(newValHash, threshold, valTimestamp)
-    blobstream= await ethers.deployContract("BlobstreamO", [guardian.address]);
-    await blobstream.init(threshold, valTimestamp, UNBONDING_PERIOD, valCheckpoint)
-    cpiUser = await ethers.deployContract("SampleCPIUser", [blobstream.target,CPI_QUERY_ID,guardian.address]);
+    let TellorDataBridge = await ethers.getContractFactory(TellorDataBridgeArtifact.abi, TellorDataBridgeArtifact.bytecode);
+    dataBridge = await TellorDataBridge.deploy(guardian.address)
+    await dataBridge.init(threshold, valTimestamp, UNBONDING_PERIOD, valCheckpoint)
+    cpiUser = await ethers.deployContract("SampleCPIUser", [dataBridge.target,CPI_QUERY_ID,guardian.address]);
     governance = accounts[2]
-    evmCallUser = await ethers.deployContract("SampleEVMCallUser",[blobstream.target,EVMCALL_QUERY_ID,guardian.address, governance.address]);
+    evmCallUser = await ethers.deployContract("SampleEVMCallUser",[dataBridge.target,EVMCALL_QUERY_ID,guardian.address, governance.address]);
     centralizedOracle = accounts[3]
-    fallbackUser = await ethers.deployContract("SampleFallbackOracleUser",[blobstream.target,PRICEFEED_QUERY_ID,guardian.address, governance.address, centralizedOracle.address]);
-    predictionMarketUser = await ethers.deployContract("SamplePredictionMarketUser",[blobstream.target,PREDICTIONMARKET_QUERY_ID,guardian.address]);
-    priceFeedUser = await ethers.deployContract("SamplePriceFeedUser",[blobstream.target,PRICEFEED_QUERY_ID,guardian.address]);
-    testPriceFeedUser = await ethers.deployContract("TestPriceFeedUser",[blobstream.target,PRICEFEED_QUERY_ID,guardian.address]);
+    fallbackUser = await ethers.deployContract("SampleFallbackOracleUser",[dataBridge.target,PRICEFEED_QUERY_ID,guardian.address, governance.address, centralizedOracle.address]);
+    predictionMarketUser = await ethers.deployContract("SamplePredictionMarketUser",[dataBridge.target,PREDICTIONMARKET_QUERY_ID,guardian.address]);
+    priceFeedUser = await ethers.deployContract("SamplePriceFeedUser",[dataBridge.target,PRICEFEED_QUERY_ID,guardian.address]);
+    testPriceFeedUser = await ethers.deployContract("TestPriceFeedUser",[dataBridge.target,PRICEFEED_QUERY_ID,guardian.address]);
   })
   describe("SampleCPIUser - Function Tests", function () {
     it("SampleCPIUser - Constructor", async function () {
-      assert(await cpiUser.blobstreamO.call() == blobstream.target, "blobstream should be set right")
+      assert(await cpiUser.dataBridge.call() == dataBridge.target, "dataBridge should be set right")
       assert(await cpiUser.queryId.call() == CPI_QUERY_ID, "queryID should be set correct")
       assert(await cpiUser.guardian.call() == guardian.address);
     });
@@ -167,7 +169,7 @@ describe("Sample Layer User - function tests", function () {
   });
   describe("SampleEVMCallUser - Function Tests", function () {
     it("SampleEVMCallUser -Constructor", async function () {
-      assert(await evmCallUser.blobstreamO.call() == blobstream.target, "blobstream should be set right")
+      assert(await evmCallUser.dataBridge.call() == dataBridge.target, "dataBridge should be set right")
       assert(await evmCallUser.queryId.call() == EVMCALL_QUERY_ID, "queryID should be set correct")
       assert(await evmCallUser.guardian.call() == guardian.address);
       assert(await evmCallUser.governance.call() == governance.address, "governance should set")
@@ -189,12 +191,12 @@ describe("Sample Layer User - function tests", function () {
       //must be governance
       await evmCallUser.connect(governance).changeOracle(accounts[9].address)
       //must wait 7 days
-      assert(await evmCallUser.blobstreamO.call() == blobstream.target);
+      assert(await evmCallUser.dataBridge.call() == dataBridge.target);
       assert(await evmCallUser.proposedOracle.call() == accounts[9].address);
       await h.expectThrow(evmCallUser.changeOracle(accounts[8].address))
       await h.advanceTime(86400*7)
       await evmCallUser.changeOracle(accounts[8].address)
-      assert(await evmCallUser.blobstreamO.call() == accounts[9].address);
+      assert(await evmCallUser.dataBridge.call() == accounts[9].address);
     });
     it("SampleEVMCallUser - togglePause", async function () {
       await h.expectThrow(evmCallUser.togglePause())//must be gauardian
@@ -269,7 +271,7 @@ describe("Sample Layer User - function tests", function () {
   });
   describe("SampleFallbackOracleUser - Function Tests", function () {
     it("SampleFallbackOracleUser - Constructor", async function () {
-      assert(await fallbackUser.blobstreamO.call() == blobstream.target, "blobstream should be set right")
+      assert(await fallbackUser.dataBridge.call() == dataBridge.target, "dataBridge should be set right")
       assert(await fallbackUser.queryId.call() == PRICEFEED_QUERY_ID, "queryID should be set correct")
       assert(await fallbackUser.guardian.call() == guardian.address);
       assert(await fallbackUser.governance.call() == governance.address, "governance should set")
@@ -294,7 +296,7 @@ describe("Sample Layer User - function tests", function () {
       await h.advanceTime(86400 *7)
       await h.expectThrow(fallbackUser.changeFallback(accounts[9].address))
       await fallbackUser.connect(guardian).changeFallback(accounts[9].address)
-      assert(await fallbackUser.blobstreamO.call() == accounts[9].address)
+      assert(await fallbackUser.dataBridge.call() == accounts[9].address)
     });
     it("SampleFallbackOracleUser - changeGuardian", async function () {
       await h.expectThrow(fallbackUser.changeGuardian(accounts[8].address))
@@ -386,7 +388,7 @@ describe("Sample Layer User - function tests", function () {
   });
   describe("SamplePredictionMarketUser - Function Tests", function () {
     it("SamplePredictionMarketUser - Constructor", async function () {
-      assert(await predictionMarketUser.blobstreamO.call() == blobstream.target, "blobstream should be set right")
+      assert(await predictionMarketUser.dataBridge.call() == dataBridge.target, "dataBridge should be set right")
       assert(await predictionMarketUser.queryId.call() == PREDICTIONMARKET_QUERY_ID, "queryID should be set correct")
       assert(await predictionMarketUser.guardian.call() == guardian.address);
     });
@@ -449,7 +451,7 @@ describe("Sample Layer User - function tests", function () {
   });
   describe("SamplePriceFeedUser - Function Tests", function () {
     it("SamplePriceFeedUser - Constructor", async function () {
-      assert(await priceFeedUser.blobstreamO.call() == blobstream.target, "blobstream should be set right")
+      assert(await priceFeedUser.dataBridge.call() == dataBridge.target, "dataBridge should be set right")
       assert(await priceFeedUser.queryId.call() == PRICEFEED_QUERY_ID, "queryID should be set correct")
       assert(await priceFeedUser.guardian.call() == guardian.address);
     });
@@ -511,7 +513,7 @@ describe("Sample Layer User - function tests", function () {
   });
   describe("TestPriceFeedUser - Function Tests", function () {
     it("TestPriceFeedUser - Constructor", async function () {
-      assert(await testPriceFeedUser.blobstreamO.call() == blobstream.target, "blobstream should be set right")
+      assert(await testPriceFeedUser.dataBridge.call() == dataBridge.target, "dataBridge should be set right")
       assert(await testPriceFeedUser.queryId.call() == PRICEFEED_QUERY_ID, "queryID should be set correct")
       assert(await testPriceFeedUser.guardian.call() == guardian.address);
     });

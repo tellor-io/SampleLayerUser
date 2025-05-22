@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import "./dependencies/IBlobstreamO.sol";
+import "usingtellorlayer/contracts/interfaces/ITellorDataBridge.sol";
 
 // For the ideal users of this contract, you want a decentralized price feed.  Speed is nice, but you want right over fast
 // It is fast with consensus, but has a small delay for a dvm/ guardian to catch it if there are issues.  
@@ -24,7 +24,7 @@ contract SamplePriceFeedUser {
     }
 
     Data[] public data;
-    IBlobstreamO public blobstreamO;
+    ITellorDataBridge public dataBridge;
     address public guardian;
     bool public paused;
     bytes32 public queryId;
@@ -36,8 +36,8 @@ contract SamplePriceFeedUser {
     event ContractPaused();
     event OracleUpdated(uint256 value, uint256 timestamp, uint256 aggregatePower);
 
-    constructor(address _blobstreamO, bytes32 _queryId, address _guardian) {
-        blobstreamO = IBlobstreamO(_blobstreamO);
+    constructor(address _dataBridge, bytes32 _queryId, address _guardian) {
+        dataBridge = ITellorDataBridge(_dataBridge);
         queryId = _queryId;
         guardian = _guardian;
     }
@@ -100,8 +100,8 @@ contract SamplePriceFeedUser {
             // using optimistic data
             require(_attestData.report.lastConsensusTimestamp < _attestData.report.timestamp, "newer consensus data available");
             require((_attestData.attestationTimestamp - _attestData.report.timestamp) / MS_PER_SECOND >= OPTIMISTIC_DELAY, "dispute period not passed. request new attestations");
-            require(_attestData.report.aggregatePower > blobstreamO.powerThreshold() / 2, "insufficient optimistic report power");
+            require(_attestData.report.aggregatePower > dataBridge.powerThreshold() / 2, "insufficient optimistic report power");
         } 
-        blobstreamO.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
+        dataBridge.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
     }
 }

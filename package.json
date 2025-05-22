@@ -13,7 +13,7 @@
     "hardhat": "^2.22.10"
   },
   "dependencies": {
-    "usingtellorlayer": "^1.0.0",
+    "usingtellorlayer": "github:tellor-io/UsingTellorLayer#updates-may",
     "web3": "^4.13.0"
   }
 }

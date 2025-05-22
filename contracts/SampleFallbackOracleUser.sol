@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import "usingtellorlayer/contracts/interfaces/IBlobstreamO.sol";
+import "usingtellorlayer/contracts/interfaces/ITellorDataBridge.sol";
 
 // For the ideal users of this contract, speed is ideal, but you can have a little delay if something breaks. 
 // The centralized oracle is known, so the bigger risk is liveness vs them attacking you (e.g. LINK or Coinbase)
@@ -30,7 +30,7 @@ contract SampleFallbackOracleUser {
     }
 
     Data[] public data;
-    IBlobstreamO public blobstreamO;
+    ITellorDataBridge public dataBridge;
 
     address public centralizedOracle;
     address public guardian;
@@ -52,8 +52,8 @@ contract SampleFallbackOracleUser {
     event OracleUpdated(uint256 value, uint256 timestamp, uint256 aggregatePower);
 
 
-    constructor(address _blobstreamO, bytes32 _queryId, address _guardian,address _governance, address _centralizedOracle) {
-        blobstreamO = IBlobstreamO(_blobstreamO);
+    constructor(address _dataBridge, bytes32 _queryId, address _guardian,address _governance, address _centralizedOracle) {
+        dataBridge = ITellorDataBridge(_dataBridge);
         queryId = _queryId;
         guardian = _guardian;
         governance = _governance;
@@ -64,7 +64,7 @@ contract SampleFallbackOracleUser {
         require(data.length > 0);
         require(msg.sender == guardian);
         require(block.timestamp - (data[data.length - 1].timestamp / MS_PER_SECOND) > 7 days);
-        blobstreamO = IBlobstreamO(_newOracle);
+        dataBridge = ITellorDataBridge(_newOracle);
         emit FallbackChanged(_newOracle);
     }
     
@@ -127,10 +127,10 @@ contract SampleFallbackOracleUser {
         }
         else if((block.timestamp - (data[data.length - 1].timestamp / MS_PER_SECOND)) > 1 hours){
             require(_attestData.queryId == queryId, "Invalid queryId");
-            blobstreamO.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
-            if(_attestData.report.aggregatePower < blobstreamO.powerThreshold()){//if not consensus data
+            dataBridge.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
+            if(_attestData.report.aggregatePower < dataBridge.powerThreshold()){//if not consensus data
                 require((_attestData.attestationTimestamp - _attestData.report.timestamp) / MS_PER_SECOND >= 15 minutes);//must be at least 15 minutes old
-                require(_attestData.report.aggregatePower > blobstreamO.powerThreshold()/2);//must have >1/3 aggregate power
+                require(_attestData.report.aggregatePower > dataBridge.powerThreshold()/2);//must have >1/3 aggregate power
                 require(_attestData.report.nextTimestamp == 0 ||
                 (_attestData.attestationTimestamp - _attestData.report.nextTimestamp) / MS_PER_SECOND < 15 minutes);//cannot have newer data you can push
             }else{

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import "./dependencies/IBlobstreamO.sol";
+import "usingtellorlayer/contracts/interfaces/ITellorDataBridge.sol";
 
 // For the ideal users of this contract, speed is not important, but nice with conesnsus.
 // Data is unique, so you don't have to worry about time series or changing, just whether its right
@@ -22,7 +22,7 @@ contract SamplePredictionMarketUser {
     }
 
     Data[] public data;
-    IBlobstreamO public blobstreamO;
+    ITellorDataBridge public dataBridge;
 
     address public guardian;
     bool public paused;
@@ -32,8 +32,8 @@ contract SamplePredictionMarketUser {
     event ContractPaused();
     event OracleUpdated(uint256 value, uint256 timestamp, uint256 aggregatePower);
 
-    constructor(address _blobstreamO, bytes32 _queryId, address _guardian) {
-        blobstreamO = IBlobstreamO(_blobstreamO);
+    constructor(address _dataBridge, bytes32 _queryId, address _guardian) {
+        dataBridge = ITellorDataBridge(_dataBridge);
         queryId = _queryId;
         guardian = _guardian;
     }
@@ -52,9 +52,9 @@ contract SamplePredictionMarketUser {
         require(!paused, "contract paused");
         require(_attestData.queryId == queryId, "Invalid queryId");
         require(block.timestamp - (_attestData.attestationTimestamp / MS_PER_SECOND) < 10 minutes, "attestation too old");
-        blobstreamO.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
+        dataBridge.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
         uint256 _value = abi.decode(_attestData.report.value, (uint256));
-        if(_attestData.report.aggregatePower < blobstreamO.powerThreshold()){//if not consensus data
+        if(_attestData.report.aggregatePower < dataBridge.powerThreshold()){//if not consensus data
             require((_attestData.attestationTimestamp - _attestData.report.timestamp) / MS_PER_SECOND >= 24 hours);//must be at least 24 hours old
         }
         data.push(Data(
