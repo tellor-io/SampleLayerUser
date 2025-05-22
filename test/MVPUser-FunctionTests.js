@@ -1,0 +1,95 @@
+var assert = require('assert');
+const h = require("usingtellorlayer/src/helpers/evmHelpers.js")
+const TellorDataBridgeArtifact = require("usingtellorlayer/artifacts/contracts/testing/bridge/TellorDataBridge.sol/TellorDataBridge.json");
+const abiCoder = new ethers.AbiCoder();
+
+// encode query data and query id for eth/usd price feed
+const ETH_USD_QUERY_DATA_ARGS = abiCoder.encode(["string","string"], ["eth","usd"])
+const ETH_USD_QUERY_DATA = abiCoder.encode(["string", "bytes"], ["SpotPrice", ETH_USD_QUERY_DATA_ARGS])
+const ETH_USD_QUERY_ID = h.hash(ETH_USD_QUERY_DATA)
+
+// define tellor validator unbonding period
+const UNBONDING_PERIOD = 86400 * 7 * 3; // 3 weeks
+
+describe("Sample MVP User - Function Tests", function () {
+  // init the assets which will be used in the tests
+  let accounts, mvpUser, dataBridge, guardian
+  let threshold, val1, initialPowers, initialValAddrs;
+
+  async function  submitData(queryId, value, aggregatePower, reportTimestamp){
+    //e.g. value = abiCoder.encode(["uint256"], [2000])
+    // e.g. queryId = h.hash("myquery")
+    blocky = await h.getBlock()
+    attestTimestamp = blocky.timestamp * 1000
+    timestamp = (reportTimestamp - 2) * 1000
+    previousTimestamp = 0
+    nextTimestamp = 0
+    newValHash = await h.calculateValHash(initialValAddrs, initialPowers)
+    valCheckpoint = await h.calculateValCheckpoint(newValHash, threshold, valTimestamp)
+    dataDigest = await h.getDataDigest(
+        queryId,
+        value,
+        timestamp,
+        aggregatePower,
+        previousTimestamp,
+        nextTimestamp,
+        valCheckpoint,
+        attestTimestamp,
+        timestamp
+    )
+    currentValSetArray = await h.getValSetStructArray(initialValAddrs, initialPowers)
+    sig1 = await h.layerSign(dataDigest, val1.privateKey)
+    sig2 = await h.layerSign(dataDigest, val2.privateKey)
+    sig3 = await h.layerSign(dataDigest, val3.privateKey)
+    sigStructArray = await h.getSigStructArray([ethers.Signature.from(sig1), ethers.Signature.from(sig2),ethers.Signature.from(sig3)])
+    oracleDataStruct = await h.getOracleDataStruct(
+        queryId,
+        value,
+        timestamp,
+        aggregatePower,
+        previousTimestamp,
+        nextTimestamp,
+        attestTimestamp,
+        timestamp
+    )
+        await dataBridge.verifyOracleData(
+          oracleDataStruct,
+          currentValSetArray,
+          sigStructArray
+      )
+    return [oracleDataStruct,currentValSetArray,sigStructArray]
+  }
+  beforeEach(async function () {
+    accounts = await ethers.getSigners();
+    guardian = accounts[1]
+    val1 = ethers.Wallet.createRandom()
+    initialValAddrs = [val1.address]
+    initialPowers = [100]
+    threshold = 66
+    blocky = await h.getBlock()
+    valTimestamp = (blocky.timestamp - 2) * 1000
+    newValHash = await h.calculateValHash(initialValAddrs, initialPowers)
+    valCheckpoint = h.calculateValCheckpoint(newValHash, threshold, valTimestamp)
+    let TellorDataBridge = await ethers.getContractFactory(TellorDataBridgeArtifact.abi, TellorDataBridgeArtifact.bytecode);
+    dataBridge = await TellorDataBridge.deploy(guardian.address)
+    await dataBridge.init(threshold, valTimestamp, UNBONDING_PERIOD, valCheckpoint)
+    mvpUser = await ethers.deployContract("SampleMVPUser", [dataBridge.target,ETH_USD_QUERY_ID]);
+  })
+  it("constructor", async function () {
+    assert(await mvpUser.dataBridge.call() == dataBridge.target, "dataBridge should be set right")
+    assert(await mvpUser.queryId.call() == ETH_USD_QUERY_ID, "queryID should be set correct")
+  });
+  it("updateOracleData, getCurrentData, getValueCount", async function () {
+    // "value" is the reported oracle data, in this case the ETH/USD price
+    let _value = abiCoder.encode(["uint256"], [3000])
+    _initialValidators = [val1]
+    const { attestData, currentValidatorSet, sigs } = await h.prepareOracleData(ETH_USD_QUERY_ID, _value, _initialValidators, initialPowers, valCheckpoint)
+    let _b = await h.getBlock() // get block before update
+    await mvpUser.updateOracleData(attestData, currentValidatorSet, sigs);
+    let _dataRetrieved =  await mvpUser.getCurrentData();
+    assert(_dataRetrieved.value == _value, "value should be correct");
+    // report timestamp is defined in prepareOracleData as: (block.timestamp - 2) * 1000
+    assert(_dataRetrieved.timestamp == (_b.timestamp - 2) * 1000, "timestamp should be correct")
+    assert(await mvpUser.getValueCount.call() == 1, "value count should be correct")
+  });
+});

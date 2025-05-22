@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import "./dependencies/IBlobstreamO.sol";
+import "usingtellorlayer/contracts/interfaces/ITellorDataBridge.sol";
 
 // For the ideal users of this contract, you can pause and wait without much problem, but there's a huge risk if a wrong value gets through
 // so you can pause it, the system always uses a delay (so a guardian can stop it or users exit)
@@ -23,13 +23,17 @@ contract SampleEVMCallUser {
     }
 
     Data[] public data;
-    IBlobstreamO public blobstreamO;
+    ITellorDataBridge public dataBridge;
 
     address public guardian;
     address public governance;
     bool public paused;
     bytes32 public queryId;
     uint256 public constant MS_PER_SECOND = 1000;
+    uint256 public constant MAX_DATA_AGE = 4 hours;
+    uint256 public constant MAX_ATTESTATION_AGE = 10 minutes;
+    uint256 public constant OPTIMISTIC_DELAY = 1 hours;
+
     //for updating
     address public proposedGuardian;
     address public proposedOracle;
@@ -41,8 +45,8 @@ contract SampleEVMCallUser {
     event OracleUpdated(uint256 _value, uint256 _timestamp, uint256 _aggregatePower);
     event PauseToggled(bool _isPaused);
 
-    constructor(address _blobstreamO, bytes32 _queryId, address _guardian, address _governance) {
-        blobstreamO = IBlobstreamO(_blobstreamO);
+    constructor(address _dataBridge, bytes32 _queryId, address _guardian, address _governance) {
+        dataBridge = ITellorDataBridge(_dataBridge);
         queryId = _queryId;
         guardian = _guardian;
         governance = _governance;
@@ -70,7 +74,7 @@ contract SampleEVMCallUser {
             emit OracleChange(updateOracleTimestamp, _newOracle);
         }else{
             require(block.timestamp - updateOracleTimestamp > 7 days);
-            blobstreamO = IBlobstreamO(proposedOracle);
+            dataBridge = ITellorDataBridge(proposedOracle);
             emit OracleChange(block.timestamp, proposedOracle);
             proposedOracle = address(0);
         }
@@ -89,11 +93,12 @@ contract SampleEVMCallUser {
     ) external {
         require(!paused, "contract paused");
         require(_attestData.queryId == queryId, "Invalid queryId");
-        blobstreamO.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
+        require(block.timestamp - (_attestData.attestationTimestamp / MS_PER_SECOND) < MAX_ATTESTATION_AGE, "attestation too old");
+        require(block.timestamp - (_attestData.report.timestamp / MS_PER_SECOND) < MAX_DATA_AGE, "data too old");
+        dataBridge.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
         uint256 _value = abi.decode(_attestData.report.value, (uint256));
-        require((_attestData.attestationTimestamp - _attestData.report.timestamp) / MS_PER_SECOND >= 1 hours);//must be at least an hour old for finality
-        require(_attestData.report.aggregatePower > blobstreamO.powerThreshold() / 2);//must have >1/3 aggregate power
-        require(block.timestamp - (_attestData.attestationTimestamp / MS_PER_SECOND) < 10 minutes);//data cannot be more than 10 minutes old (the relayed attestation)
+        require((_attestData.attestationTimestamp - _attestData.report.timestamp) / MS_PER_SECOND >= OPTIMISTIC_DELAY);//must be at least an hour old for finality
+        require(_attestData.report.aggregatePower > dataBridge.powerThreshold() / 2);//must have >1/3 aggregate power
         if(data.length > 0 ){
             require(_attestData.report.timestamp > data[data.length - 1].timestamp);//cannot go back in time
         }

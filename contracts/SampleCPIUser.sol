@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import "./dependencies/IBlobstreamO.sol";
-import "hardhat/console.sol";
+import "usingtellorlayer/contracts/interfaces/ITellorDataBridge.sol";
 
 // For the ideal users of this contract, you have low risk in not changing a good value, inflation rarely sky rockets, but huge risk if it is uncapped in changes
 // so you can pause it, the system limits an update to 10% change per day (in case even guardian fails)
@@ -24,17 +23,20 @@ contract SampleCPIUser {
     }
 
     Data[] public data;
-    IBlobstreamO public blobstreamO;
+    ITellorDataBridge public dataBridge;
     address public guardian;
     bool public paused;
     bytes32 public queryId;
     uint256 public constant MS_PER_SECOND = 1000;
+    uint256 public constant MAX_ATTESTATION_AGE = 10 minutes;
+    uint256 public constant MAX_DATA_AGE = 5 days;
+    uint256 public constant OPTIMISTIC_DELAY = 24 hours;
     event ContractPaused();
     event OracleUpdated(uint256 _value, uint256 _timestamp, uint256 _aggregatePower);
 
 
-    constructor(address _blobstreamO, bytes32 _queryId, address _guardian) {
-        blobstreamO = IBlobstreamO(_blobstreamO);
+    constructor(address _dataBridge, bytes32 _queryId, address _guardian) {
+        dataBridge = ITellorDataBridge(_dataBridge);
         queryId = _queryId;
         guardian = _guardian;
     }
@@ -52,17 +54,18 @@ contract SampleCPIUser {
     ) external {
         require(!paused, "contract paused");
         require(_attestData.queryId == queryId, "Invalid queryId");
-        blobstreamO.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
-        uint256 _value = abi.decode(_attestData.report.value, (uint256));
+        require(block.timestamp - (_attestData.attestationTimestamp / MS_PER_SECOND) < MAX_ATTESTATION_AGE, "attestation too old");
+        require(block.timestamp - (_attestData.report.timestamp / MS_PER_SECOND) < MAX_DATA_AGE, "data too old");
+        dataBridge.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
         require(_attestData.report.timestamp >= _attestData.report.lastConsensusTimestamp, "newer consensus data available");
-        if(_attestData.report.aggregatePower < blobstreamO.powerThreshold()){//if not consensus data
-            require((_attestData.attestationTimestamp - _attestData.report.timestamp) / MS_PER_SECOND >= 24 hours);//must be at least one day old
+        if (_attestData.report.aggregatePower < dataBridge.powerThreshold()){//if not consensus data
+            require((_attestData.attestationTimestamp - _attestData.report.timestamp) / MS_PER_SECOND >= OPTIMISTIC_DELAY);//must be at least one day old
             require(_attestData.report.nextTimestamp == 0 ||
-            block.timestamp - (_attestData.report.nextTimestamp / MS_PER_SECOND) < 24 hours);//cannot have newer data you can push
+            block.timestamp - (_attestData.report.nextTimestamp / MS_PER_SECOND) < OPTIMISTIC_DELAY);//cannot have newer data you can push
         }
-        require(block.timestamp - (_attestData.attestationTimestamp / MS_PER_SECOND) < 15 minutes);//data cannot be more than 10 minutes old (the relayed attestation)
-        if(data.length > 0 ){
-            require(data.length == 0 || block.timestamp - (data[data.length - 1].timestamp / MS_PER_SECOND) > 1 days); //can only be updated once daily
+        uint256 _value = abi.decode(_attestData.report.value, (uint256));
+        if (data.length > 0 ){
+            require(data.length == 0 || block.timestamp - (data[data.length - 1].timestamp / MS_PER_SECOND) > 23 hours); //can only be updated once daily
             require(_attestData.report.timestamp > data[data.length - 1].timestamp);//cannot go back in time
             if(_percentChange(data[data.length - 1].value,_value) > 10){
                 if(data[data.length - 1].value > _value){
