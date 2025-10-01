@@ -31,6 +31,8 @@ contract YoloUser {
     ) external {
         // make sure the data is valid tellor data
         dataBridge.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
+        // make sure the data being relayed is the data we want
+        require(queryId == _attestData.queryId, "Invalid queryId");
 
         // decode the data and store it
         uint256 _value = abi.decode(_attestData.report.value, (uint256));

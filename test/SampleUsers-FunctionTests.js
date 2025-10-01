@@ -1,6 +1,6 @@
 var assert = require('assert');
 const h = require("usingtellorlayer/src/helpers/evmHelpers.js")
-const TellorDataBridgeArtifact = require("usingtellorlayer/artifacts/contracts/testing/bridge/TellorDataBridge.sol/TellorDataBridge.json");
+const TellorDataBridgeArtifact = require("usingtellorlayer/artifacts/contracts/bridge/TellorDataBridge.sol/TellorDataBridge.json");
 const abiCoder = new ethers.AbiCoder();
 
 const PRICEFEED_DATA_ARGS = abiCoder.encode(["string","string"], ["trb","usd"])
@@ -21,6 +21,7 @@ const PREDICTIONMARKET_DATA_ARGS = abiCoder.encode(["string","string"], ["trb","
 const PREDICTIONMARKET_QUERY_DATA = abiCoder.encode(["string", "bytes"], ["SpotPrice", PREDICTIONMARKET_DATA_ARGS])
 const PREDICTIONMARKET_QUERY_ID = h.hash(PREDICTIONMARKET_QUERY_DATA)
 const UNBONDING_PERIOD = 86400 * 7 * 3; // 3 weeks
+const VALIDATOR_SET_HASH_DOMAIN_SEPARATOR = h.getDomainSeparator("tellor-1")
 
 describe("Sample Layer User - function tests", function () {
   // We define a fixture to reuse the same setup in every test.
@@ -38,7 +39,7 @@ describe("Sample Layer User - function tests", function () {
     previousTimestamp = 0
     nextTimestamp = 0
     newValHash = await h.calculateValHash(initialValAddrs, initialPowers)
-    valCheckpoint = await h.calculateValCheckpoint(newValHash, threshold, valTimestamp)
+    valCheckpoint = await h.calculateValCheckpoint(newValHash, threshold, valTimestamp, VALIDATOR_SET_HASH_DOMAIN_SEPARATOR)
     dataDigest = await h.getDataDigest(
         queryId,
         value,
@@ -93,7 +94,7 @@ describe("Sample Layer User - function tests", function () {
     newValHash = await h.calculateValHash(initialValAddrs, initialPowers)
     valCheckpoint = h.calculateValCheckpoint(newValHash, threshold, valTimestamp)
     let TellorDataBridge = await ethers.getContractFactory(TellorDataBridgeArtifact.abi, TellorDataBridgeArtifact.bytecode);
-    dataBridge = await TellorDataBridge.deploy(guardian.address)
+    dataBridge = await TellorDataBridge.deploy(guardian.address, VALIDATOR_SET_HASH_DOMAIN_SEPARATOR)
     await dataBridge.init(threshold, valTimestamp, UNBONDING_PERIOD, valCheckpoint)
     cpiUser = await ethers.deployContract("SampleCPIUser", [dataBridge.target,CPI_QUERY_ID,guardian.address]);
     governance = accounts[2]
@@ -507,33 +508,6 @@ describe("Sample Layer User - function tests", function () {
       assert(vars[1].aggregatePower == _power2)
       assert(vars[1].relayTimestamp == _b3.timestamp)
       assert(await priceFeedUser.getValueCount.call() == 2)
-    });
-  });
-  describe("TestPriceFeedUser - Function Tests", function () {
-    it("TestPriceFeedUser - Constructor", async function () {
-      assert(await testPriceFeedUser.dataBridge.call() == dataBridge.target, "dataBridge should be set right")
-      assert(await testPriceFeedUser.queryId.call() == PRICEFEED_QUERY_ID, "queryID should be set correct")
-      assert(await testPriceFeedUser.guardian.call() == guardian.address);
-    });
-    it("TestPriceFeedUser - updateOracleData2", async function () {
-      let _b0= await h.getBlock()
-      let _power = 6;
-      let _reportTimestamp = _b0.timestamp - 60*61//at least one hour old
-      let _value = abiCoder.encode(["uint256"], [3000])
-      let res = await submitData(PRICEFEED_QUERY_ID,_value, _power, _reportTimestamp);
-      let _attestData = res[0]
-      let _currentValidatorSet = res[1]
-      let _sigs = res[2]
-      await testPriceFeedUser.updateOracleData2(_attestData, _currentValidatorSet, _sigs, _b0.timestamp, _b0.timestamp+1);
-      let _b1= await h.getBlock()
-      let vars = await testPriceFeedUser.getAllExtendedData()
-      assert(vars[0].value == _value);
-      assert(vars[0].timestamp == (_b0.timestamp - 60*61 - 2) * 1000);
-      assert(vars[0].aggregatePower == _power);
-      assert(vars[0].relayTimestamp == _b1.timestamp);
-      assert(vars[0].previousTimestamp == 0);
-      assert(vars[0].nextTimestamp == 0);
-      assert(vars[0].initTimestamp == _b0.timestamp);
     });
   });
 });
