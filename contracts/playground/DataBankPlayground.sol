@@ -7,7 +7,7 @@ import "usingtellorlayer/contracts/interfaces/ITellorDataBridge.sol";
  @author Tellor Inc.
  @title DataBankPlayground
  @dev This contract is used to store data for multiple data feeds. It has no data bridge validation,
- and is used for testing purposes.
+ and is used for testing simple tellor integrations.
 */
 contract DataBankPlayground {
     // Storage
@@ -35,7 +35,7 @@ contract DataBankPlayground {
         OracleAttestationData calldata _attestData,
         Validator[] calldata /* _currentValidatorSet */,
         Signature[] calldata /* _sigs */
-    ) external {
+    ) public {
         // Skips verification for testing purposes
         // dataBridge.verifyOracleData(_attestData, _currentValidatorSet, _sigs);
 
@@ -49,8 +49,19 @@ contract DataBankPlayground {
         emit OracleUpdated(_attestData.queryId, _attestData);
     }
 
-    // Getter functions
+    /**
+     * @dev updates oracle data with new attestation data for playground
+     * without needing to format data structs
+     * @param _queryId the query ID to update the oracle data for
+     * @param _value the value to update the oracle data with
+     */
+    function updateOracleDataPlayground(bytes32 _queryId, bytes memory _value) external {
+        // aggregate timestamp from tellor is in milliseconds
+        uint256 _aggregateTimestamp = (block.timestamp - 1) * 1000;
+        data[_queryId].push(AggregateData(_value, 0, _aggregateTimestamp, _aggregateTimestamp, block.timestamp));
+    }
 
+    // Getter functions
     /**
      * @dev returns the aggregate data for a given query ID and index
      * @param _queryId the query ID to get the aggregate data for

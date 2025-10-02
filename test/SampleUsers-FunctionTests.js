@@ -27,7 +27,7 @@ describe("Sample Layer User - function tests", function () {
   // We define a fixture to reuse the same setup in every test.
   // We use loadFixture to run this setup once, snapshot that state,
   // and reset Hardhat Network to that snapshot in every test.
-  let accounts, cpiUser, evmCallUser, fallbackUser, predictionMarketUser, priceFeedUser, testPriceFeedUser, dataBridge, guardian, governance, centralizedOracle
+  let accounts, cpiUser, evmCallUser, fallbackUser, predictionMarketUser, priceFeedUser, dataBridge, guardian, governance, centralizedOracle
   let threshold, val1, val2, initialPowers, initialValAddrs;
 
   async function  submitData(queryId, value, aggregatePower, reportTimestamp){
@@ -103,7 +103,6 @@ describe("Sample Layer User - function tests", function () {
     fallbackUser = await ethers.deployContract("SampleFallbackOracleUser",[dataBridge.target,PRICEFEED_QUERY_ID,guardian.address, governance.address, centralizedOracle.address]);
     predictionMarketUser = await ethers.deployContract("SamplePredictionMarketUser",[dataBridge.target,PREDICTIONMARKET_QUERY_ID,guardian.address]);
     priceFeedUser = await ethers.deployContract("SamplePriceFeedUser",[dataBridge.target,PRICEFEED_QUERY_ID,guardian.address]);
-    testPriceFeedUser = await ethers.deployContract("TestPriceFeedUser",[dataBridge.target,PRICEFEED_QUERY_ID,guardian.address]);
   })
   describe("SampleCPIUser - Function Tests", function () {
     it("SampleCPIUser - Constructor", async function () {
