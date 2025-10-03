@@ -19,10 +19,7 @@ module.exports = {
             runs: 300,
           },
         },
-      },
-      {
-        version: "0.8.22",
-      },
+      }
     ],
   },
   networks: {

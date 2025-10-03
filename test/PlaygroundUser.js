@@ -1,6 +1,7 @@
 const { ethers } = require("hardhat");
 var assert = require('assert');
 const abiCoder = new ethers.AbiCoder();
+const DataBankPlaygroundArtifact = require("usingtellorlayer/artifacts/contracts/testing/DataBankPlayground.sol/DataBankPlayground.json");
 
 // encode query data and query id for eth/usd price feed
 const ETH_USD_QUERY_DATA_ARGS = abiCoder.encode(["string","string"], ["eth","usd"])
@@ -14,8 +15,9 @@ describe("DataBankPlayground - Function Tests", function () {
   beforeEach(async function () {
     // init accounts
     accounts = await ethers.getSigners();
-    // deploy databank
-    databank = await ethers.deployContract("DataBankPlayground");
+    // deploy databank from usingtellorlayer
+    let DataBankPlayground = await ethers.getContractFactory(DataBankPlaygroundArtifact.abi, DataBankPlaygroundArtifact.bytecode);
+    databank = await DataBankPlayground.deploy();
     // deploy user
     user = await ethers.deployContract("PlaygroundUser", [databank.target, ETH_USD_QUERY_ID]);
   })
