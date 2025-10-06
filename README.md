@@ -1,15 +1,13 @@
 
 # Sample Projects Using Tellor Layer <a name="sample"> </a>
 
-<b>The Tellor oracle</b> is a decentralized oracle. The tellor oracle chain, Layer, provides an option for contracts to interact securely with and obtain data from off-chain.
-
-This repository aims to provide an updated version of various examples of sample code that uses Tellor.  Note that there are different checks and best practices depending on the specific use case and user profile.  The examples specified in this repo are: 
+This repository provides various examples of sample code that uses Tellor.  Note that there are different checks and best practices depending on the specific use case and user profile.  The examples specified in this repo are: 
 - Price feeds
 - Slow data (e.g. the CPI thats updated monthly)
 - Prediction Markets
 - Tellor as a fallback to a centralized oracle
 - Reading from another EVM chain
-- MVP User
+- YOLO User - a baseline oracle user that just verifies the data is valid tellor data
 
 For more in-depth information about Tellor, check out our [documentation](https://docs.tellor.io/tellor/).
 
@@ -38,7 +36,6 @@ Using tellor layer is simple:
 
 For more advanced users, if you have further questions or if you want to run a reporter yourself, please head to [docs.tellor.io/layer-docs](https://docs.tellor.io/layer-docs)
 
-
 #### 3. To run tests:
 
 Hardhat: 
@@ -48,11 +45,17 @@ npx hardhat test
 ```
 
 #### 4. Deployment:
-Hardhat: 
 
-First create a .env file corresponding to the .env.example file
+### Configure your network
 
-Next update your hardhat.config with the correct network/gas settings. 
+Configure your network in your hardhat.config with the correct network/gas settings. 
+
+### Setup Config Variables
+Setup config variables relevant to your setup. The default variables are for `INFURA_API_KEY`, `ETHERSCAN_API_KEY`, `TESTNET_PK`, and `MAINNET_PK`:
+
+```shell
+npx hardhat vars set INFURA_API_KEY
+```
 
 Then, in scripts/DeploySampleMVPUser.js, change the dataBridgeAddress to correspond to the correct address corresponding to your deployment network [https://docs.tellor.io/tellor/the-basics/contracts-reference](https://docs.tellor.io/tellor/the-basics/contracts-reference). Change the queryId to the correct queryId for the data you want to read. Change the NODE_URL to the correct value for your deployment network.
 

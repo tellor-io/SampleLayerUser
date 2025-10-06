@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import "./interfaces/IDataBankPlayground.sol";
+import "usingtellorlayer/contracts/interfaces/IDataBankPlayground.sol";
 
 /**
  * @title PlaygroundUser
